@@ -1,111 +1,88 @@
-import React, { useState, useEffect } from 'react';
-import './App.css';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
+import { ServiceForm } from '../components/ServiceForm';
+import { ServiceList } from '../components/ServiceList';
 
-// Define the Application interface
-interface Application {
+type Application = {
   id: string;
   applicant_name: string;
   nid_number: string;
-  service_type: string;
-  status: string;
-  created_at: string;
-}
+  service_type: any;
+  status: any;
+};
+type ServiceType = Application['service_type'];
+type ApplicationStatus = Application['status'];
 
-function App() {
+const getApplications = async (): Promise<Application[]> => {
+  const response = await fetch('/api/applications');
+  if (!response.ok) throw new Error('Failed to fetch applications');
+  return response.json();
+};
+
+const defaultServiceType = 'Trade License' as ServiceType;
+const defaultStatus = 'Pending' as ApplicationStatus;
+
+export function ServicesPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form states for Create / Update
-  const [applicantName, setApplicantName] = useState('');
-  const [nidNumber, setNidNumber] = useState('');
-  const [serviceType, setServiceType] = useState('Trade License');
+  const [applicantName, setApplicantName] = useState<string>('');
+  const [nidNumber, setNidNumber] = useState<string>('');
+  const [serviceType, setServiceType] = useState<ServiceType>(defaultServiceType);
+  const [status, setStatus] = useState<ApplicationStatus>(defaultStatus);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [status, setStatus] = useState('Pending');
 
-  // Backend API Base URL (Vite proxy or direct backend URL)
-  const API_URL = '/api/applications/';
-
-  // 1. READ LIST: Fetch all applications from backend
-  const fetchApplications = async () => {
+  const loadApplications = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(API_URL);
-      const result = await response.json();
-      if (response.ok) {
-        setApplications(result.data || []);
-      } else {
-        setError('Failed to fetch applications');
-      }
-    } catch (err) {
-      setError('Network error while fetching applications');
+      const data = await getApplications();
+      setApplications(data);
+    } catch {
+      setError('Failed to fetch applications');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchApplications();
+    loadApplications();
   }, []);
 
-  // 2. CREATE or UPDATE: Handle Form Submit
-  const handleSubmit = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setApplicantName('');
+    setNidNumber('');
+    setServiceType(defaultServiceType);
+    setStatus(defaultStatus);
+    setEditingId(null);
+  };
+
+  const handleSubmit = async (e: FormEvent<Element>) => {
     e.preventDefault();
+
     if (!applicantName || !nidNumber) {
       alert('Please fill in all required fields');
       return;
     }
 
-    const payload = {
-      applicant_name: applicantName,
-      nid_number: nidNumber,
-      service_type: serviceType,
-      status: status,
-    };
 
     try {
       if (editingId) {
-        // UPDATE Request
-        const response = await fetch(`${API_URL}${editingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (response.ok) {
-          alert('Application updated successfully!');
-          setEditingId(null);
-        } else {
-          alert('Update failed');
-        }
+        alert('Application updates are not available');
+        return;
       } else {
-        // CREATE Request
-        const response = await fetch(API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            applicant_name: applicantName,
-            nid_number: nidNumber,
-            service_type: serviceType,
-          }),
-        });
-        if (response.ok) {
-          alert('Application submitted successfully!');
-        } else {
-          alert('Creation failed');
-        }
+        alert('Application submissions are not available');
+        return;
       }
 
-      // Reset form and refresh list
-      setApplicantName('');
-      setNidNumber('');
-      setStatus('Pending');
-      fetchApplications();
-    } catch (err) {
+      resetForm();
+      loadApplications();
+    } catch {
       alert('An error occurred during submission');
     }
   };
 
-  // Prepare form for editing (Update)
   const handleEdit = (app: Application) => {
     setEditingId(app.id);
     setApplicantName(app.applicant_name);
@@ -114,156 +91,35 @@ function App() {
     setStatus(app.status);
   };
 
-  // 3. DELETE: Remove an application
-  const handleDelete = async (id: string) => {
+  const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this application?')) return;
 
-    try {
-      const response = await fetch(`${API_URL}${id}`, {
-        method: 'DELETE',
-      });
-      if (response.ok) {
-        alert('Application deleted successfully');
-        fetchApplications();
-      } else {
-        alert('Delete failed');
-      }
-    } catch (err) {
-      alert('Error occurred while deleting');
-    }
+    alert('Application deletion is not available');
   };
 
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
-      <header style={{ textAlign: 'center', marginBottom: '30px' }}>
-        <h1 style={{ color: '#2c3e50' }}>Union Parishad Digital Service (UPDS)</h1>
-        <p>Citizen Service Application Management Portal (MVP CRUD)</p>
-      </header>
+    <div>
+      <ServiceForm
+        applicantName={applicantName}
+        setApplicantName={setApplicantName}
+        nidNumber={nidNumber}
+        setNidNumber={setNidNumber}
+        serviceType={serviceType}
+        setServiceType={setServiceType}
+        status={status}
+        setStatus={setStatus}
+        editingId={editingId}
+        setEditingId={setEditingId}
+        handleSubmit={handleSubmit}
+      />
 
-      {/* Form Section (Create / Update) */}
-      <section style={{ background: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '30px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-        <h3>{editingId ? 'Edit Application' : 'Submit New Service Application'}</h3>
-        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '15px', gridTemplateColumns: '1fr 1fr' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px' }}>Applicant Name:</label>
-            <input
-              type="text"
-              value={applicantName}
-              onChange={(e) => setApplicantName(e.target.value)}
-              required
-              style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px' }}>NID Number:</label>
-            <input
-              type="text"
-              value={nidNumber}
-              onChange={(e) => setNidNumber(e.target.value)}
-              required
-              style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px' }}>Service Type:</label>
-            <select
-              value={serviceType}
-              onChange={(e) => setServiceType(e.target.value)}
-              style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-            >
-              <option value="Trade License">Trade License</option>
-              <option value="Citizen Certificate">Citizen Certificate</option>
-              <option value="Character Certificate">Character Certificate</option>
-              <option value="Family Certificate">Family Certificate</option>
-            </select>
-          </div>
-          {editingId && (
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Status:</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-              >
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
-            </div>
-          )}
-          <div style={{ gridColumn: 'span 2', display: 'flex', gap: '10px' }}>
-            <button type="submit" style={{ background: '#27ae60', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-              {editingId ? 'Update Application' : 'Submit Application'}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={() => { setEditingId(null); setApplicantName(''); setNidNumber(''); }}
-                style={{ background: '#95a5a6', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
-      </section>
-
-      {/* List Section (Read List) */}
-      <section>
-        <h3>Submitted Applications List</h3>
-        {loading && <p>Loading applications...</p>}
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        {!loading && applications.length === 0 && <p>No applications found.</p>}
-
-        {applications.length > 0 && (
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-            <thead>
-              <tr style={{ background: '#34495e', color: 'white', textAlign: 'left' }}>
-                <th style={{ padding: '10px' }}>Name</th>
-                <th style={{ padding: '10px' }}>NID</th>
-                <th style={{ padding: '10px' }}>Service Type</th>
-                <th style={{ padding: '10px' }}>Status</th>
-                <th style={{ padding: '10px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {applications.map((app) => (
-                <tr key={app.id} style={{ borderBottom: '1px solid #ddd' }}>
-                  <td style={{ padding: '10px' }}>{app.applicant_name}</td>
-                  <td style={{ padding: '10px' }}>{app.nid_number}</td>
-                  <td style={{ padding: '10px' }}>{app.service_type}</td>
-                  <td style={{ padding: '10px' }}>
-                    <span style={{
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      color: 'white',
-                      background: app.status === 'Approved' ? '#27ae60' : app.status === 'Rejected' ? '#c0392b' : '#f39c12'
-                    }}>
-                      {app.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '10px', display: 'flex', gap: '8px' }}>
-                    <button
-                      onClick={() => handleEdit(app)}
-                      style={{ background: '#2980b9', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(app.id)}
-                      style={{ background: '#c0392b', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+      <ServiceList
+        applications={applications}
+        loading={loading}
+        error={error}
+        handleEdit={handleEdit}
+        handleDelete={handleDelete}
+      />
     </div>
   );
 }
-
-export default App;

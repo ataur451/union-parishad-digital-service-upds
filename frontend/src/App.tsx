@@ -1,14 +1,11 @@
-import React from 'react';
-import './App.css';
+import { createElement } from 'react';
 import { AppLayout } from './layouts/AppLayout';
 import { ServicesPage } from './pages/ServicesPage';
+// @ts-ignore CSS files are loaded by the bundler, not TypeScript.
+import './App.css';
 
 function App() {
-  return (
-    <AppLayout>
-      <ServicesPage />
-    </AppLayout>
-  );
+  return createElement(AppLayout, null, createElement(ServicesPage));
 }
 
 export default App;
