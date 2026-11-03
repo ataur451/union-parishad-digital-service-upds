@@ -70,7 +70,46 @@ def update_application(app_id: str, app_data: ApplicationUpdate):
         raise HTTPException(status_code=404, detail="Application not found or update failed")
     return {"message": "Application updated successfully", "data": response.data[0]}
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.routers import applications
 
+app = FastAPI(title="Union Parishad Digital Service (UPDS) API")
+
+# Enable CORS to allow requests from the frontend
+app.add_middleware(
+    CORSMiddleware,from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.applications.router import router as applications_router
+
+app = FastAPI(title="Union Parishad Digital Service (UPDS) API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Register feature routers
+app.include_router(applications_router)
+
+@app.get("/")
+def root():
+    return {"message": "Welcome to UPDS Backend API"}
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include the application router
+app.include_router(applications.router)
+
+@app.get("/")
+def root():
+    return {"message": "Welcome to UPDS Backend API"}
 # 5. DELETE: Remove an application
 @app.delete("/api/applications/{app_id}")
 def delete_application(app_id: str):
