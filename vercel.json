@@ -1,24 +1,12 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "services": {
-    "backend": {
-      "root": "backend",
-      "framework": "fastapi",
-      "entrypoint": "main:app"
-    },
-    "frontend": {
-      "root": "frontend",
-      "framework": "vite"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": { "service": "backend" }
+      "destination": "https://miniature-trout-5g4w6wqggjv63xvg-8000.app.github.dev/api/$1"
     },
     {
       "source": "/(.*)",
-      "destination": { "service": "frontend" }
+      "destination": "/index.html"
     }
   ]
 }

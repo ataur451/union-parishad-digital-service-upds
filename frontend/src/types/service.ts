@@ -7,7 +7,7 @@ export interface ServiceItem {
 }
 
 export interface Application {
-  id: string;
+  id?: string; // Optional if omitted when creating a new application
   applicant_name: string;
   nid_number: string;
   service_type: string;

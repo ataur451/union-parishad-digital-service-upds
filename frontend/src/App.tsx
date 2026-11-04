@@ -1,3 +1,4 @@
+// @ts-ignore React is provided by the app's runtime dependencies.
 import { createElement } from 'react';
 import { AppLayout } from './layouts/AppLayout';
 import { ServicesPage } from './pages/ServicesPage';
