@@ -25,7 +25,7 @@ def ensure_supabase_available() -> None:
     if supabase is None:
         raise HTTPException(
             status_code=503,
-            detail="Supabase is not configured or is unreachable. Add SUPABASE_URL and SUPABASE_KEY in the Vercel environment variables.",
+           detail="Supabase is not configured or is unreachable. Add SUPABASE_URL and SUPABASE_KEY in the Render environment variables.",
         )
 
 app = FastAPI(title="Union Parishad Digital Service (UPDS) API")
