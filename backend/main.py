@@ -12,7 +12,21 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: Client | None = None
+
+try:
+    if SUPABASE_URL and SUPABASE_KEY:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception:
+    supabase = None
+
+
+def ensure_supabase_available() -> None:
+    if supabase is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Supabase is not configured or is unreachable. Add SUPABASE_URL and SUPABASE_KEY in the Vercel environment variables.",
+        )
 
 app = FastAPI(title="Union Parishad Digital Service (UPDS) API")
 
@@ -44,22 +58,27 @@ def root():
     return {"message": "Welcome to UPDS Backend API"}
 
 
+@app.post("/api/applications")
 @app.post("/api/applications/")
 def create_application(app_data: ApplicationCreate):
+    ensure_supabase_available()
     response = supabase.table("service_applications").insert(app_data.model_dump()).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to create application")
     return {"message": "Application created successfully", "data": response.data[0]}
 
 
+@app.get("/api/applications")
 @app.get("/api/applications/")
 def get_applications():
+    ensure_supabase_available()
     response = supabase.table("service_applications").select("*").order("created_at", desc=True).execute()
     return {"data": response.data}
 
 
 @app.get("/api/applications/{app_id}")
 def get_application(app_id: str):
+    ensure_supabase_available()
     response = supabase.table("service_applications").select("*").eq("id", app_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Application not found")
@@ -68,6 +87,7 @@ def get_application(app_id: str):
 
 @app.put("/api/applications/{app_id}")
 def update_application(app_id: str, app_data: ApplicationUpdate):
+    ensure_supabase_available()
     update_data = {k: v for k, v in app_data.model_dump().items() if v is not None}
     response = supabase.table("service_applications").update(update_data).eq("id", app_id).execute()
     if not response.data:
@@ -77,5 +97,6 @@ def update_application(app_id: str, app_data: ApplicationUpdate):
 
 @app.delete("/api/applications/{app_id}")
 def delete_application(app_id: str):
+    ensure_supabase_available()
     supabase.table("service_applications").delete().eq("id", app_id).execute()
     return {"message": "Application deleted successfully", "id": app_id}

@@ -14,9 +14,28 @@ type ServiceType = Application['service_type'];
 type ApplicationStatus = Application['status'];
 
 const getApplications = async (): Promise<Application[]> => {
-  const response = await fetch('/api/applications');
-  if (!response.ok) throw new Error('Failed to fetch applications');
-  return response.json();
+  const response = await fetch('/api/applications/');
+  const contentType = response.headers.get('content-type') || '';
+  const rawText = await response.text();
+
+  if (!response.ok) {
+    try {
+      const errorBody = rawText ? JSON.parse(rawText) : {};
+      throw new Error(errorBody.detail || `Request failed with status ${response.status}`);
+    } catch {
+      throw new Error(rawText || `Request failed with status ${response.status}`);
+    }
+  }
+
+  if (!contentType.includes('application/json')) {
+    throw new Error('The API returned HTML instead of JSON. Please check the Vercel backend routing and deployed environment variables.');
+  }
+
+  try {
+    return rawText ? JSON.parse(rawText) : [];
+  } catch {
+    throw new Error('The API response could not be parsed as JSON.');
+  }
 };
 
 const defaultServiceType = 'Trade License' as ServiceType;
@@ -39,8 +58,8 @@ export function ServicesPage() {
     try {
       const data = await getApplications();
       setApplications(data);
-    } catch {
-      setError('Failed to fetch applications');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch applications');
     } finally {
       setLoading(false);
     }
