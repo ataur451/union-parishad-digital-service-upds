@@ -78,7 +78,7 @@ app = FastAPI(title="Union Parishad Digital Service (UPDS) API")
 
 # Enable CORS to allow requests from the frontend
 app.add_middleware(
-    CORSMiddleware,from fastapi import FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.applications.router import router as applications_router
 

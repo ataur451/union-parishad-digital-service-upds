@@ -1,5 +1,5 @@
 import React from 'react';
-import { Application } from '../types/service';
+import type { Application } from '../types/service';
 
 interface ServiceListProps {
   applications: Application[];
