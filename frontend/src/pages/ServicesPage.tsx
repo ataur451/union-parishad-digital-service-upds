@@ -1,105 +1,73 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { ServiceForm } from '../components/ServiceForm';
-import { ServiceList } from '../components/ServiceList';
 import type { Application } from '../types/service';
-import {
-  createApplication,
-  deleteApplication,
-  getApplications,
-  updateApplication,
-} from '../services/api';
-
-const defaultServiceType = 'Trade License';
-const defaultStatus = 'Pending';
+import { ServiceList } from '../components/ServiceList';
+import { ServiceForm } from '../components/ServiceFrom';
 
 export function ServicesPage() {
   const [applications, setApplications] = useState<Application[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading] = useState(false);
+  const [error] = useState<string | null>(null);
 
-  const [applicantName, setApplicantName] = useState<string>('');
-  const [nidNumber, setNidNumber] = useState<string>('');
-  const [serviceType, setServiceType] = useState<string>(defaultServiceType);
-  const [status, setStatus] = useState<string>(defaultStatus);
+  const [applicantName, setApplicantName] = useState('');
+  const [nidNumber, setNidNumber] = useState('');
+  const [serviceType, setServiceType] = useState('Trade License');
+  const [status, setStatus] = useState('Pending');
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const loadApplications = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setApplications(await getApplications());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch applications');
-    } finally {
-      setLoading(false);
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+
+    if (editingId) {
+      setApplications((prev) =>
+        prev.map((app) =>
+          app.id === editingId
+            ? {
+                ...app,
+                applicant_name: applicantName,
+                nid_number: nidNumber,
+                service_type: serviceType,
+                status,
+              }
+            : app
+        )
+      );
+    } else {
+      const newApplication: Application = {
+        id: Date.now().toString(),
+        applicant_name: applicantName,
+        nid_number: nidNumber,
+        service_type: serviceType,
+        status: 'Pending',
+      };
+
+      setApplications((prev) => [...prev, newApplication]);
     }
-  };
 
-  useEffect(() => {
-    loadApplications();
-  }, []);
-
-  const resetForm = () => {
     setApplicantName('');
     setNidNumber('');
-    setServiceType(defaultServiceType);
-    setStatus(defaultStatus);
+    setServiceType('Trade License');
+    setStatus('Pending');
     setEditingId(null);
   };
 
-  const handleSubmit = async (e: FormEvent<Element>) => {
-    e.preventDefault();
-
-    if (!applicantName.trim() || !nidNumber.trim()) {
-      alert('Please fill in all required fields');
-      return;
-    }
-
-    try {
-      if (editingId) {
-        await updateApplication(editingId, {
-          applicant_name: applicantName.trim(),
-          nid_number: nidNumber.trim(),
-          service_type: serviceType,
-          status,
-        });
-      } else {
-        await createApplication({
-          applicant_name: applicantName.trim(),
-          nid_number: nidNumber.trim(),
-          service_type: serviceType,
-        });
-      }
-      resetForm();
-      await loadApplications();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred during submission');
-    }
-  };
-
   const handleEdit = (app: Application) => {
-    setEditingId(app.id ?? null);
     setApplicantName(app.applicant_name);
     setNidNumber(app.nid_number);
     setServiceType(app.service_type);
     setStatus(app.status);
+    setEditingId(app.id);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this application?')) return;
-
-    try {
-      await deleteApplication(id);
-      if (editingId === id) resetForm();
-      await loadApplications();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete application');
-    }
+  const handleDelete = (id: string) => {
+    setApplications((prev) => prev.filter((app) => app.id !== id));
   };
 
   return (
-    <div>
+    <section id="services">
+      <h2>Available Services</h2>
+      <p>Explore the digital services offered by your Union Parishad.</p>
+
       <ServiceForm
         applicantName={applicantName}
         setApplicantName={setApplicantName}
@@ -121,6 +89,6 @@ export function ServicesPage() {
         handleEdit={handleEdit}
         handleDelete={handleDelete}
       />
-    </div>
+    </section>
   );
 }

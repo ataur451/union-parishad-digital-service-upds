@@ -1,33 +1,91 @@
-# FastAPI + React Template
 
-FastAPI backend + Vite/React/TypeScript frontend, deployed to Vercel as one project.
+# Union Parishad Digital Service (UPDS)
 
+A web-based digital platform designed to simplify and modernize Union Parishad services in Bangladesh.
+
+## 📌 Project Overview
+
+Union Parishad Digital Service (UPDS) aims to make local government services more accessible, organized, and efficient through a digital platform.
+
+The system allows citizens to submit service applications online and helps manage application information digitally.
+
+## 🎯 Objectives
+
+- Digitalize traditional Union Parishad services.
+- Reduce paperwork and manual processes.
+- Make citizen service applications easier to manage.
+- Improve transparency and efficiency.
+- Provide a user-friendly digital service platform.
+
+## ✨ Features
+
+- Submit service applications.
+- View submitted applications.
+- Update application information.
+- Delete applications.
+- Track application status.
+- Manage application records.
+
+## 🛠️ Technologies Used
+
+### Frontend
+- React
+- TypeScript
+- Vite
+- CSS
+
+### Backend
+- Python
+- FastAPI
+- SQLite
+- Pydantic
+
+### Development Tools
+- Git & GitHub
+- GitHub Codespaces
+- VS Code
+
+## 📁 Project Structure
+
+```text
+union-parishad-digital-service-upds/
+│
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── assets/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── layouts/
+│   │   ├── services/
+│   │   ├── types/
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   └── package.json
+│
+├── backend/
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   └── applications.py
+│   ├── main.py
+│   ├── database.py
+│   ├── models.py
+│   ├── schemas.py
+│   └── requirements.txt
+│
+└── README.md
 ```
-backend/    FastAPI app (routes under /api)
-frontend/   Vite + React + TypeScript
-vercel.json Vercel setup: /api/* goes to backend, everything else to frontend
-```
 
-## Requirements
+## ⚙️ Installation and Setup
 
-- [Python](https://www.python.org/downloads/) 3.10+
-- [Node.js](https://nodejs.org/) 22+
-
-> On macOS/Linux, use `python3` instead of `python`.
-
-## Run locally
-
-**Backend** (terminal 1):
+### 1. Clone the Repository
 
 ```bash
-cd backend
-python -m venv .venv
-.venv\Scripts\Activate.ps1      # macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
-fastapi dev main.py
+git clone YOUR_GITHUB_REPOSITORY_URL
+cd union-parishad-digital-service-upds
 ```
 
-**Frontend** (terminal 2):
+### 2. Frontend Setup
 
 ```bash
 cd frontend
@@ -35,38 +93,67 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 and click **Say hello**. Vite forwards `/api` requests to the backend on port 8000.
+### 3. Backend Setup
 
-To run it the way Vercel does instead, from the project root:
+Open another terminal:
 
 ```bash
-npm install -g vercel
-vercel dev -L
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-> Add new Python packages to `backend/requirements.txt`.
+Start the backend server:
 
-## Class exercise
+```bash
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
 
-Send an ID, name and email from React to FastAPI and show the reply.
+## 🔗 API Documentation
 
-1. In `backend/main.py`, uncomment the `EXERCISE (part 1)` block. Try `POST /api/user` at http://localhost:8000/docs.
-2. In `frontend/src/App.tsx`, uncomment `<UserForm />` and the `UserForm` function (`EXERCISE (part 2)`).
-3. Fill in the form at http://localhost:5173 and click **Send**.
+After starting the backend, access the interactive API documentation:
 
-Try an invalid email (send it from `/docs`, since the browser blocks it in the form): FastAPI returns `422` without any extra code.
+```text
+http://localhost:8000/docs
+```
 
-## Deploy to Vercel
+### Application API Endpoints
 
-1. Push the repo to GitHub.
-2. Go to https://vercel.com/new, import the repo and click **Deploy**. Keep **Root Directory** as `./`.
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/applications/` | Create an application |
+| GET | `/applications/` | Get all applications |
+| GET | `/applications/{id}` | Get a single application |
+| PUT | `/applications/{id}` | Update an application |
+| DELETE | `/applications/{id}` | Delete an application |
 
-Every push to `main` redeploys automatically. Or deploy from your machine with `vercel --prod`.
+## 🗄️ Database
 
-## Troubleshooting
+The project uses SQLite to store application information.
 
-- **"Running scripts is disabled" in PowerShell:** run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
-- **`fastapi` not found:** activate the virtual environment first.
-- **`Request failed: 500` in the app:** the backend isn't running.
-- **App at localhost:8000 shows an old version:** delete `frontend/dist`.
-- **Vercel build fails:** check **Build Logs** in the Vercel dashboard, and make sure `npm run build` works in `frontend/`.
+Each application contains:
+
+- Application ID
+- Applicant Name
+- NID Number
+- Service Type
+- Application Status
+
+## 🚀 Future Improvements
+
+- User authentication and authorization.
+- Citizen registration and login.
+- Online application status tracking.
+- Admin dashboard.
+- Application approval and rejection system.
+- PDF certificate generation.
+- Notifications for application updates.
+
+## 👨‍💻 Developer
+
+Developed as an academic project.
+
+## 📄 License
+
+This project is developed for educational purposes.
