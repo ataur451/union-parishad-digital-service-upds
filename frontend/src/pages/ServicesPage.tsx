@@ -2,33 +2,40 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ServiceForm } from '../components/ServiceForm';
 import { ServiceList } from '../components/ServiceList';
+import type { Application } from '../types/service';
 
-type Application = {
-  id: string;
-  applicant_name: string;
-  nid_number: string;
-  service_type: any;
-  status: any;
-};
 type ServiceType = Application['service_type'];
 type ApplicationStatus = Application['status'];
 
+// Deployed: Vercel env var VITE_API_URL = Render backend URL (no trailing slash)
+// Local: empty string, so the Vite proxy keeps working
+const API_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+
 const getApplications = async (): Promise<Application[]> => {
-  const response = await fetch('/api/applications/');
+  const response = await fetch(`${API_URL}/api/applications/`);
   const contentType = response.headers.get('content-type') || '';
   const rawText = await response.text();
 
   if (!response.ok) {
+    let message = rawText || `Request failed with status ${response.status}`;
     try {
       const errorBody = rawText ? JSON.parse(rawText) : {};
-      throw new Error(errorBody.detail || `Request failed with status ${response.status}`);
+      if (errorBody.detail) {
+        message =
+          typeof errorBody.detail === 'string'
+            ? errorBody.detail
+            : JSON.stringify(errorBody.detail);
+      }
     } catch {
-      throw new Error(rawText || `Request failed with status ${response.status}`);
+      // rawText is not JSON, keep the raw message
     }
+    throw new Error(message);
   }
 
   if (!contentType.includes('application/json')) {
-    throw new Error('The API returned HTML instead of JSON. Please check the Vercel backend routing and deployed environment variables.');
+    throw new Error(
+      'The API returned HTML instead of JSON. Please check the Vercel backend routing and deployed environment variables.'
+    );
   }
 
   try {
@@ -85,7 +92,6 @@ export function ServicesPage() {
       return;
     }
 
-
     try {
       if (editingId) {
         alert('Application updates are not available');
@@ -103,14 +109,14 @@ export function ServicesPage() {
   };
 
   const handleEdit = (app: Application) => {
-    setEditingId(app.id);
+    setEditingId(app.id ?? null);
     setApplicantName(app.applicant_name);
     setNidNumber(app.nid_number);
     setServiceType(app.service_type);
     setStatus(app.status);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (_id: string) => {
     if (!window.confirm('Are you sure you want to delete this application?')) return;
 
     alert('Application deletion is not available');

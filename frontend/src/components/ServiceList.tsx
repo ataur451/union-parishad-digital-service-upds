@@ -58,7 +58,7 @@ export const ServiceList: React.FC<ServiceListProps> = ({
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDelete(app.id)}
+                    onClick={() => app.id && handleDelete(app.id)}
                     style={{ background: '#c0392b', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}
                   >
                     Delete
