@@ -1,38 +1,69 @@
-import type { ServiceItem } from '../types/service';
+import type { Application } from '../types/service';
 
-const API_BASE_URL = (import.meta as ImportMeta & {
-  readonly env: { readonly VITE_API_BASE_URL?: string };
-}).env.VITE_API_BASE_URL || 'http://localhost:8000';
+// Deployed: Vercel env var VITE_API_URL = Render backend URL (no trailing slash)
+// Local: empty string -> same-origin (use a Vite proxy or set VITE_API_URL=http://localhost:8000)
+const API_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 
-export const getServices = async (): Promise<ServiceItem[]> => {
-  const res = await fetch(`${API_BASE_URL}/api/v1/services`);
-  if (!res.ok) throw new Error('Failed to fetch services');
-  return res.json();
+export type ApplicationInput = Pick<
+  Application,
+  'applicant_name' | 'nid_number' | 'service_type'
+>;
+export type ApplicationUpdate = Partial<ApplicationInput & Pick<Application, 'status'>>;
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
+  });
+  const contentType = response.headers.get('content-type') ?? '';
+  const rawText = await response.text();
+
+  if (!response.ok) {
+    let message = rawText || `Request failed with status ${response.status}`;
+    try {
+      const body = rawText ? JSON.parse(rawText) : {};
+      if (typeof body.detail === 'string') {
+        message = body.detail;
+      } else if (Array.isArray(body.detail)) {
+        // FastAPI validation errors (422)
+        message = body.detail.map((d: { msg?: string }) => d.msg).join(', ');
+      }
+    } catch {
+      // not JSON, keep raw text
+    }
+    throw new Error(message);
+  }
+
+  if (!contentType.includes('application/json')) {
+    throw new Error(
+      'The API returned HTML instead of JSON. Check VITE_API_URL on Vercel and redeploy.'
+    );
+  }
+
+  try {
+    return (rawText ? JSON.parse(rawText) : {}) as T;
+  } catch {
+    throw new Error('The API response could not be parsed as JSON.');
+  }
+}
+
+// Backend wraps every response as { data: ... }
+export const getApplications = async (): Promise<Application[]> => {
+  const json = await request<{ data?: Application[] }>('/api/applications/');
+  return json.data ?? [];
 };
 
-export const createService = async (item: ServiceItem): Promise<ServiceItem> => {
-  const res = await fetch(`${API_BASE_URL}/api/v1/services`, {
+export const createApplication = (input: ApplicationInput) =>
+  request<{ data: Application }>('/api/applications/', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(item),
+    body: JSON.stringify(input),
   });
-  if (!res.ok) throw new Error('Failed to create service');
-  return res.json();
-};
 
-export const updateService = async (id: string, item: Partial<ServiceItem>): Promise<ServiceItem> => {
-  const res = await fetch(`${API_BASE_URL}/api/v1/services/${id}`, {
+export const updateApplication = (id: string, input: ApplicationUpdate) =>
+  request<{ data: Application }>(`/api/applications/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(item),
+    body: JSON.stringify(input),
   });
-  if (!res.ok) throw new Error('Failed to update service');
-  return res.json();
-};
 
-export const deleteService = async (id: string): Promise<void> => {
-  const res = await fetch(`${API_BASE_URL}/api/v1/services/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Failed to delete service');
-};
+export const deleteApplication = (id: string) =>
+  request<{ message: string }>(`/api/applications/${id}`, { method: 'DELETE' });

@@ -3,50 +3,15 @@ import type { FormEvent } from 'react';
 import { ServiceForm } from '../components/ServiceForm';
 import { ServiceList } from '../components/ServiceList';
 import type { Application } from '../types/service';
+import {
+  createApplication,
+  deleteApplication,
+  getApplications,
+  updateApplication,
+} from '../services/api';
 
-type ServiceType = Application['service_type'];
-type ApplicationStatus = Application['status'];
-
-// Deployed: Vercel env var VITE_API_URL = Render backend URL (no trailing slash)
-// Local: empty string, so the Vite proxy keeps working
-const API_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
-
-const getApplications = async (): Promise<Application[]> => {
-  const response = await fetch(`${API_URL}/api/applications/`);
-  const contentType = response.headers.get('content-type') || '';
-  const rawText = await response.text();
-
-  if (!response.ok) {
-    let message = rawText || `Request failed with status ${response.status}`;
-    try {
-      const errorBody = rawText ? JSON.parse(rawText) : {};
-      if (errorBody.detail) {
-        message =
-          typeof errorBody.detail === 'string'
-            ? errorBody.detail
-            : JSON.stringify(errorBody.detail);
-      }
-    } catch {
-      // rawText is not JSON, keep the raw message
-    }
-    throw new Error(message);
-  }
-
-  if (!contentType.includes('application/json')) {
-    throw new Error(
-      'The API returned HTML instead of JSON. Please check the Vercel backend routing and deployed environment variables.'
-    );
-  }
-
-  try {
-    return rawText ? JSON.parse(rawText) : [];
-  } catch {
-    throw new Error('The API response could not be parsed as JSON.');
-  }
-};
-
-const defaultServiceType = 'Trade License' as ServiceType;
-const defaultStatus = 'Pending' as ApplicationStatus;
+const defaultServiceType = 'Trade License';
+const defaultStatus = 'Pending';
 
 export function ServicesPage() {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -55,16 +20,15 @@ export function ServicesPage() {
 
   const [applicantName, setApplicantName] = useState<string>('');
   const [nidNumber, setNidNumber] = useState<string>('');
-  const [serviceType, setServiceType] = useState<ServiceType>(defaultServiceType);
-  const [status, setStatus] = useState<ApplicationStatus>(defaultStatus);
+  const [serviceType, setServiceType] = useState<string>(defaultServiceType);
+  const [status, setStatus] = useState<string>(defaultStatus);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const loadApplications = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getApplications();
-      setApplications(data);
+      setApplications(await getApplications());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch applications');
     } finally {
@@ -87,24 +51,30 @@ export function ServicesPage() {
   const handleSubmit = async (e: FormEvent<Element>) => {
     e.preventDefault();
 
-    if (!applicantName || !nidNumber) {
+    if (!applicantName.trim() || !nidNumber.trim()) {
       alert('Please fill in all required fields');
       return;
     }
 
     try {
       if (editingId) {
-        alert('Application updates are not available');
-        return;
+        await updateApplication(editingId, {
+          applicant_name: applicantName.trim(),
+          nid_number: nidNumber.trim(),
+          service_type: serviceType,
+          status,
+        });
       } else {
-        alert('Application submissions are not available');
-        return;
+        await createApplication({
+          applicant_name: applicantName.trim(),
+          nid_number: nidNumber.trim(),
+          service_type: serviceType,
+        });
       }
-
       resetForm();
-      loadApplications();
-    } catch {
-      alert('An error occurred during submission');
+      await loadApplications();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'An error occurred during submission');
     }
   };
 
@@ -116,10 +86,16 @@ export function ServicesPage() {
     setStatus(app.status);
   };
 
-  const handleDelete = async (_id: string) => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this application?')) return;
 
-    alert('Application deletion is not available');
+    try {
+      await deleteApplication(id);
+      if (editingId === id) resetForm();
+      await loadApplications();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete application');
+    }
   };
 
   return (
