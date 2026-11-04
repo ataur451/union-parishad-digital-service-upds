@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from supabase import create_client, Client
+from supabase import Client, create_client
 
 load_dotenv()
 
@@ -17,7 +17,7 @@ supabase: Client | None = None
 try:
     if SUPABASE_URL and SUPABASE_KEY:
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-except Exception:
+except Exception:  # noqa: BLE001
     supabase = None
 
 
