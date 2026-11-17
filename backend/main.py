@@ -8,7 +8,9 @@ from routers.applications import router as application_router
 app = FastAPI(
     title="Union Parishad Digital Service API",
     description="Backend API for Union Parishad Digital Service",
-    version="1.0.0"
+    version="1.0.0",
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json"
 )
 
 
@@ -28,12 +30,13 @@ def startup():
     create_application_table()
 
 
-# REGISTER APPLICATION ROUTER
-app.include_router(application_router)
+# REGISTER APPLICATION ROUTER WITH /api PREFIX
+app.include_router(application_router, prefix="/api")
 
 
 # HOME ROUTE
-@app.get("/")
+@app.get("/api")
+@app.get("/api/")
 def home():
     return {
         "message": "Union Parishad Digital Service API is running"
