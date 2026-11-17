@@ -1,18 +1,21 @@
+import os
 import sqlite3
 from pathlib import Path
 
-DATABASE_URL = Path(__file__).parent / "applications.db"
+if os.environ.get("VERCEL"):
+    DATABASE_URL = Path("/tmp/applications.db")
+else:
+    DATABASE_URL = Path(__file__).parent / "applications.db"
 
 
 def get_db():
-    conn = sqlite3.connect(DATABASE_URL)
+    conn = sqlite3.connect(DATABASE_URL, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def create_table():
     conn = get_db()
-
     conn.execute("""
         CREATE TABLE IF NOT EXISTS applications (
             id TEXT PRIMARY KEY,
@@ -22,6 +25,5 @@ def create_table():
             status TEXT NOT NULL
         )
     """)
-
     conn.commit()
     conn.close()

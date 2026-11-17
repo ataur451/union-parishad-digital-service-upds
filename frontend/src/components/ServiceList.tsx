@@ -4,6 +4,7 @@ interface ServiceListProps {
   applications: Application[];
   loading: boolean;
   error: string | null;
+  handleView: (id: string) => void;
   handleEdit: (app: Application) => void;
   handleDelete: (id: string) => void;
 }
@@ -12,6 +13,7 @@ export function ServiceList({
   applications,
   loading,
   error,
+  handleView,
   handleEdit,
   handleDelete,
 }: ServiceListProps) {
@@ -45,10 +47,25 @@ export function ServiceList({
                 <td style={{ padding: '10px' }}>{app.nid_number}</td>
                 <td style={{ padding: '10px' }}>{app.service_type}</td>
                 <td style={{ padding: '10px' }}>{app.status}</td>
-                <td style={{ padding: '10px' }}>
-                  <button onClick={() => handleEdit(app)}>Edit</button>
-                  {' '}
-                  <button onClick={() => handleDelete(app.id)}>Delete</button>
+                <td style={{ padding: '10px', display: 'flex', gap: '6px' }}>
+                  <button
+                    onClick={() => handleView(app.id)}
+                    style={{ background: '#2980b9', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    View
+                  </button>
+                  <button
+                    onClick={() => handleEdit(app)}
+                    style={{ background: '#f39c12', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(app.id)}
+                    style={{ background: '#c0392b', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
