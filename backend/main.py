@@ -1,43 +1,30 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
-from models import create_application_table
-from routers.applications import router as application_router
+from routers import auth, applications, groups, admin
 
+load_dotenv()
 
-app = FastAPI(
-    title="Union Parishad Digital Service API",
-    description="Backend API for Union Parishad Digital Service",
-    version="1.0.0",
-    docs_url="/api/docs",
-    openapi_url="/api/openapi.json"
-)
+app = FastAPI(title="Union Parishad Digital Service (UPDS) API", version="2.0.0")
 
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
-# CORS CONFIGURATION
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=[frontend_url, "http://localhost:5173", "http://localhost:3000"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-# DATABASE TABLE CREATION
-@app.on_event("startup")
-def startup():
-    create_application_table()
-
-
-# REGISTER APPLICATION ROUTER WITH /api PREFIX
-app.include_router(application_router, prefix="/api")
+app.include_router(auth.router)
+app.include_router(applications.router)
+app.include_router(groups.router)
+app.include_router(admin.router)
 
 
-# HOME ROUTE
-@app.get("/api")
-@app.get("/api/")
-def home():
-    return {
-        "message": "Union Parishad Digital Service API is running"
-    }
+@app.get("/")
+def health_check():
+    return {"status": "UPDS Secure Multi-User API is running"}
