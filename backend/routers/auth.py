@@ -32,8 +32,7 @@ def register(payload: UserRegister, req: Request, db: Session = Depends(get_db))
 
     role = "admin" if db.query(User).count() == 0 else "user"
     user = User(
-        full_name=payload.full_name.strip(),
-        email=payload.email.lower(),
+full_name=(payload.full_name or payload.name or "User").strip(),        email=payload.email.lower(),
         hashed_password=hash_password(payload.password),
         role=role,
     )
