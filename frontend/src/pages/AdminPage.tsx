@@ -39,7 +39,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
     loadAdminData();
   }, []);
 
-  const handleRoleChange = async (userId: number, newRole: Role) => {
+  const handleRoleChange = async (userId: number | string, newRole: Role) => {
     setError(null);
     setSuccessMsg(null);
     try {
@@ -51,7 +51,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
     }
   };
 
-  const handleToggleStatus = async (userId: number) => {
+  const handleToggleStatus = async (userId: number | string) => {
     setError(null);
     setSuccessMsg(null);
     try {

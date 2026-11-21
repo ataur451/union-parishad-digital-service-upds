@@ -14,6 +14,30 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 const TOKEN_KEY = 'upds_access_token';
 const USER_KEY = 'upds_current_user';
 
+interface ApiUser {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  is_banned: boolean;
+  created_at?: string;
+}
+
+interface ApiAuthResponse extends Omit<AuthResponse, 'user'> {
+  user: ApiUser;
+}
+
+function normalizeUser(user: ApiUser): User {
+  return {
+    id: user.id,
+    name: user.full_name,
+    email: user.email,
+    role: user.role === 'admin' ? 'admin' : 'citizen',
+    is_active: !user.is_banned,
+    created_at: user.created_at,
+  };
+}
+
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -90,32 +114,34 @@ export async function loginUser(
   email: string,
   password: string
 ): Promise<AuthResponse> {
-  const data = await apiFetch<AuthResponse>('/auth/login', {
+  const data = await apiFetch<ApiAuthResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
-  saveAuthSession(data);
-  return data;
+  const auth = { ...data, user: normalizeUser(data.user) };
+  saveAuthSession(auth);
+  return auth;
 }
 
 export async function registerUser(payload: {
-  name: string;
+  full_name: string;
   email: string;
-  nid?: string;
   password: string;
 }): Promise<AuthResponse> {
-  const data = await apiFetch<AuthResponse>('/auth/register', {
+  const data = await apiFetch<ApiAuthResponse>('/auth/register', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
-  saveAuthSession(data);
-  return data;
+  const auth = { ...data, user: normalizeUser(data.user) };
+  saveAuthSession(auth);
+  return auth;
 }
 
 export async function fetchCurrentUser(): Promise<User> {
-  const user = await apiFetch<User>('/auth/me');
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-  return user;
+  const user = await apiFetch<ApiUser>('/auth/me');
+  const normalizedUser = normalizeUser(user);
+  localStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
+  return normalizedUser;
 }
 
 // ==================== Application APIs ====================
@@ -221,7 +247,7 @@ export async function fetchAllUsers(): Promise<User[]> {
 }
 
 export async function updateUserRole(
-  userId: number,
+  userId: number | string,
   role: Role
 ): Promise<User> {
   return apiFetch<User>(`/admin/users/${userId}/role`, {
@@ -230,7 +256,7 @@ export async function updateUserRole(
   });
 }
 
-export async function toggleUserStatus(userId: number): Promise<User> {
+export async function toggleUserStatus(userId: number | string): Promise<User> {
   return apiFetch<User>(`/admin/users/${userId}/status`, {
     method: 'PATCH',
   });

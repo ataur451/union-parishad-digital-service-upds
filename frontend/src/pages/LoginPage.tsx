@@ -32,9 +32,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           throw new Error('Full name is required.');
         }
         const res = await registerUser({
-          name: name.trim(),
+          full_name: name.trim(),
           email: email.trim(),
-          nid: nid.trim() || undefined,
           password,
         });
         onLoginSuccess(res.user);

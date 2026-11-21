@@ -1,7 +1,7 @@
 export type Role = 'citizen' | 'staff' | 'admin';
 
 export interface User {
-  id: number;
+  id: number | string;
   name: string;
   email: string;
   nid?: string | null;
@@ -12,6 +12,7 @@ export interface User {
 
 export interface AuthResponse {
   access_token: string;
+  refresh_token: string;
   token_type: string;
   user: User;
 }

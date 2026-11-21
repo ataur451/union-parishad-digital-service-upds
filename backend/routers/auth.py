@@ -25,38 +25,7 @@ def save_log(db: Session, req: Request, action: str, user: User = None, email: s
     db.commit()
 
 
-@router.post("/register", response_model=UserOut, status_code=201)
-def register(payload: UserRegister, req: Request, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == payload.email.lower()).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    role = "admin" if db.query(User).count() == 0 else "user"
-    user = User(
-full_name=(payload.full_name or payload.name or "User").strip(),        email=payload.email.lower(),
-        hashed_password=hash_password(payload.password),
-        role=role,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    save_log(db, req, "register", user=user, info=f"Role: {role}")
-    return user
-
-
-@router.post("/login", response_model=TokenResponse)
-def login(payload: UserLogin, req: Request, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email.lower()).first()
-
-    if not user or not verify_password(payload.password, user.hashed_password):
-        if user:
-            user.failed_login_attempts += 1
-        save_log(db, req, "login_failed", user=user, email=payload.email, info="Wrong credentials")
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-
-    if user.is_banned:
-        save_log(db, req, "banned_login_attempt", user=user, info=user.ban_reason or "Banned")
-        raise HTTPException(status_code=403, detail=f"Account banned: {user.ban_reason}")
-
+def create_auth_session(user: User, req: Request, db: Session) -> TokenResponse:
     user.failed_login_attempts = 0
     user.last_login_at = datetime.now(timezone.utc)
 
@@ -76,8 +45,46 @@ def login(payload: UserLogin, req: Request, db: Session = Depends(get_db)):
     session.expires_at = exp
     db.commit()
 
-    save_log(db, req, "login_success", user=user)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token, user=user)
+
+
+@router.post("/register", response_model=TokenResponse, status_code=201)
+def register(payload: UserRegister, req: Request, db: Session = Depends(get_db)):
+    if db.query(User).filter(User.email == payload.email.lower()).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    role = "admin" if db.query(User).count() == 0 else "user"
+    user = User(
+        full_name=(payload.full_name or "User").strip(),
+        email=payload.email.lower(),
+        hashed_password=hash_password(payload.password),
+        role=role,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    auth = create_auth_session(user, req, db)
+    save_log(db, req, "register", user=user, info=f"Role: {role}")
+    return auth
+
+
+@router.post("/login", response_model=TokenResponse)
+def login(payload: UserLogin, req: Request, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email.lower()).first()
+
+    if not user or not verify_password(payload.password, user.hashed_password):
+        if user:
+            user.failed_login_attempts += 1
+        save_log(db, req, "login_failed", user=user, email=payload.email, info="Wrong credentials")
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    if user.is_banned:
+        save_log(db, req, "banned_login_attempt", user=user, info=user.ban_reason or "Banned")
+        raise HTTPException(status_code=403, detail=f"Account banned: {user.ban_reason}")
+
+    auth = create_auth_session(user, req, db)
+    save_log(db, req, "login_success", user=user)
+    return auth
 
 
 @router.post("/refresh")
