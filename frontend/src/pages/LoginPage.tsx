@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ShieldCheck, UserRound, ArrowLeft } from 'lucide-react';
 import { loginUser, registerUser } from '../services/api';
 import type { User } from '../types/service';
 interface LoginPageProps {
@@ -149,28 +150,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         </form>
 
         <div className="demo-accounts-box">
-          <div className="demo-title">Quick Demo Accounts (1-Click Fill):</div>
+          <div className="demo-title">Try a local demo account</div>
           <div className="demo-buttons">
             <button
               type="button"
               className="btn-demo"
-              onClick={() => fillDemoAccount('admin@upds.gov.bd', 'admin123')}
+              onClick={() => fillDemoAccount('admin@example.com', 'Demo@12345')}
             >
-              👑 Admin
+              <ShieldCheck size={16} aria-hidden="true" /> Admin
             </button>
             <button
               type="button"
               className="btn-demo"
-              onClick={() => fillDemoAccount('staff@upds.gov.bd', 'staff123')}
+              onClick={() => fillDemoAccount('citizen@example.com', 'Demo@12345')}
             >
-              🗂️ Staff
-            </button>
-            <button
-              type="button"
-              className="btn-demo"
-              onClick={() => fillDemoAccount('citizen@upds.gov.bd', 'citizen123')}
-            >
-              👤 Citizen
+              <UserRound size={16} aria-hidden="true" /> Citizen
             </button>
           </div>
         </div>
@@ -178,7 +172,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         {onCancel && (
           <div style={{ marginTop: '1rem', textAlign: 'center' }}>
             <button type="button" className="btn-link" onClick={onCancel}>
-              ← Back to Home
+              <ArrowLeft size={16} aria-hidden="true" /> Back to services
             </button>
           </div>
         )}

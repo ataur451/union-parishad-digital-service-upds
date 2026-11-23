@@ -5,7 +5,6 @@ import type {
   AuditLog,
   AuthResponse,
   Group,
-  Role,
   User,
 } from '../types/service';
 
@@ -81,7 +80,7 @@ async function apiFetch<T>(
     headers,
   });
 
-  if (response.status === 401) {
+  if (response.status === 401 && token && !endpoint.startsWith('/auth/login') && !endpoint.startsWith('/auth/register')) {
     clearAuthSession();
     window.dispatchEvent(new Event('upds:unauthorized'));
   }
@@ -144,12 +143,25 @@ export async function fetchCurrentUser(): Promise<User> {
   return normalizedUser;
 }
 
+interface ApiApplication extends Omit<Application, 'application_id' | 'submitted_at'> {
+  created_at: string;
+}
+
+function normalizeApplication(app: ApiApplication): Application {
+  return { ...app, application_id: app.id, submitted_at: app.created_at, status: app.status.toLowerCase() as ApplicationStatus };
+}
+
+interface ApiGroup extends Omit<Group, 'created_by'> { owner_id: string }
+function normalizeGroup(group: ApiGroup): Group {
+  return { ...group, created_by: group.owner_id };
+}
+
 // ==================== Application APIs ====================
 
 export async function fetchApplications(params?: {
   status?: string;
   search?: string;
-  group_id?: number;
+  group_id?: string;
 }): Promise<Application[]> {
   const query = new URLSearchParams();
   if (params?.status && params.status !== 'all') query.set('status', params.status);
@@ -157,48 +169,51 @@ export async function fetchApplications(params?: {
   if (params?.group_id) query.set('group_id', String(params.group_id));
 
   const qs = query.toString();
-  return apiFetch<Application[]>(`/applications${qs ? `?${qs}` : ''}`);
+  const apps = await apiFetch<ApiApplication[]>(`/applications${qs ? `?${qs}` : ''}`);
+  return apps.map(normalizeApplication);
 }
 
 export async function trackApplicationById(
   applicationId: string
 ): Promise<Application> {
-  return apiFetch<Application>(
-    `/applications/track/${encodeURIComponent(applicationId.trim())}`
-  );
+  const app = await apiFetch<ApiApplication>(`/applications/track/${encodeURIComponent(applicationId.trim())}`);
+  return normalizeApplication(app);
 }
 
 export async function createApplication(
   formData: ApplicationFormData
 ): Promise<Application> {
-  return apiFetch<Application>('/applications', {
+  const app = await apiFetch<ApiApplication>('/applications', {
     method: 'POST',
     body: JSON.stringify(formData),
   });
+  return normalizeApplication(app);
 }
 
 export async function updateApplicationStatus(
-  id: number,
+  id: string,
   status: ApplicationStatus,
   remarks?: string
 ): Promise<Application> {
-  return apiFetch<Application>(`/applications/${id}/status`, {
+  const app = await apiFetch<ApiApplication>(`/applications/${id}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status, remarks }),
   });
+  return normalizeApplication(app);
 }
 
 export async function shareApplicationWithGroup(
-  applicationId: number,
-  groupId: number | null
+  applicationId: string,
+  groupId: string | null
 ): Promise<Application> {
-  return apiFetch<Application>(`/applications/${applicationId}/share`, {
+  const app = await apiFetch<ApiApplication>(`/applications/${applicationId}/share`, {
     method: 'PATCH',
     body: JSON.stringify({ group_id: groupId }),
   });
+  return normalizeApplication(app);
 }
 
-export async function deleteApplication(id: number): Promise<void> {
+export async function deleteApplication(id: string): Promise<void> {
   return apiFetch<void>(`/applications/${id}`, {
     method: 'DELETE',
   });
@@ -207,33 +222,36 @@ export async function deleteApplication(id: number): Promise<void> {
 // ==================== Group & RBAC APIs ====================
 
 export async function fetchGroups(): Promise<Group[]> {
-  return apiFetch<Group[]>('/groups');
+  const groups = await apiFetch<ApiGroup[]>('/groups');
+  return groups.map(normalizeGroup);
 }
 
 export async function createGroup(
   name: string,
   description?: string
 ): Promise<Group> {
-  return apiFetch<Group>('/groups', {
+  const group = await apiFetch<ApiGroup>('/groups', {
     method: 'POST',
     body: JSON.stringify({ name, description }),
   });
+  return normalizeGroup(group);
 }
 
 export async function addGroupMember(
-  groupId: number,
+  groupId: string,
   email: string,
   groupRole: 'leader' | 'member' = 'member'
 ): Promise<Group> {
-  return apiFetch<Group>(`/groups/${groupId}/members`, {
+  const group = await apiFetch<ApiGroup>(`/groups/${groupId}/members`, {
     method: 'POST',
     body: JSON.stringify({ email, group_role: groupRole }),
   });
+  return normalizeGroup(group);
 }
 
 export async function removeGroupMember(
-  groupId: number,
-  userId: number
+  groupId: string,
+  userId: string
 ): Promise<void> {
   return apiFetch<void>(`/groups/${groupId}/members/${userId}`, {
     method: 'DELETE',
@@ -243,23 +261,16 @@ export async function removeGroupMember(
 // ==================== Admin APIs ====================
 
 export async function fetchAllUsers(): Promise<User[]> {
-  return apiFetch<User[]>('/admin/users');
+  const users = await apiFetch<ApiUser[]>('/admin/users');
+  return users.map(normalizeUser);
 }
 
-export async function updateUserRole(
-  userId: number | string,
-  role: Role
-): Promise<User> {
-  return apiFetch<User>(`/admin/users/${userId}/role`, {
-    method: 'PATCH',
-    body: JSON.stringify({ role }),
+export async function setUserStatus(userId: number | string, active: boolean): Promise<User> {
+  const user = await apiFetch<ApiUser>(`/admin/users/${userId}/${active ? 'unban' : 'ban'}`, {
+    method: 'POST',
+    ...(active ? {} : { body: JSON.stringify({ reason: 'Suspended by administrator' }) }),
   });
-}
-
-export async function toggleUserStatus(userId: number | string): Promise<User> {
-  return apiFetch<User>(`/admin/users/${userId}/status`, {
-    method: 'PATCH',
-  });
+  return normalizeUser(user);
 }
 
 export async function fetchAuditLogs(): Promise<AuditLog[]> {

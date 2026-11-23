@@ -85,37 +85,42 @@ git clone YOUR_GITHUB_REPOSITORY_URL
 cd union-parishad-digital-service-upds
 ```
 
-### 2. Frontend Setup
+### 2. Windows Local Development
 
-```bash
-cd frontend
-npm install
-npm run dev
+Create the repository-root virtual environment and install the backend dependencies:
+```powershell
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
 ```
 
-### 3. Backend Setup
+Start the backend in one PowerShell terminal. The local SQLite URL overrides any `DATABASE_URL` in `backend\.env`, so local development does not write to a configured remote database:
 
-Open another terminal:
-
-```bash
+```powershell
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+$env:DATABASE_URL = "sqlite:///./upds_local.db"
+..\.venv\Scripts\python.exe seed_demo.py
+..\.venv\Scripts\python.exe -m uvicorn main:app --reload --host 127.0.0.1 --port 8001
 ```
 
-Start the backend server:
+Start the frontend in a second PowerShell terminal:
 
-```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```powershell
+cd frontend
+$env:VITE_API_PROXY_TARGET = "http://127.0.0.1:8001"
+npm.cmd ci
+npm.cmd run dev
 ```
+
+Open the local URL printed by Vite. The demo accounts are `admin@example.com` and `citizen@example.com`; both use password `Demo@12345`. The API docs are available at `http://127.0.0.1:8001/docs`.
+
+The proxy defaults to port 8000; `VITE_API_PROXY_TARGET` lets you use another backend port when 8000 is occupied.
 
 ## 🔗 API Documentation
 
 After starting the backend, access the interactive API documentation:
 
 ```text
-http://localhost:8000/docs
+http://127.0.0.1:8001/docs
 ```
 
 ### Application API Endpoints

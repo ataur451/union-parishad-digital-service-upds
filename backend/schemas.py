@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -48,6 +48,13 @@ class ApplicationCreate(BaseModel):
     service_type: str
     group_id: Optional[str] = None
     assigned_to: Optional[str] = None
+    phone: str = Field(..., min_length=1, max_length=30)
+    email: Optional[EmailStr] = None
+    father_name: str = Field(..., min_length=1, max_length=100)
+    mother_name: str = Field(..., min_length=1, max_length=100)
+    address: str = Field(..., min_length=1, max_length=500)
+    ward_number: str = Field(..., min_length=1, max_length=10)
+    additional_info: Optional[str] = None
 
 
 class ApplicationUpdate(BaseModel):
@@ -68,18 +75,38 @@ class ApplicationOut(BaseModel):
     group_id: Optional[str] = None
     assigned_to: Optional[str] = None
     created_at: datetime
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    father_name: Optional[str] = None
+    mother_name: Optional[str] = None
+    address: Optional[str] = None
+    ward_number: Optional[str] = None
+    additional_info: Optional[str] = None
+    remarks: Optional[str] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
 
+class ApplicationStatusUpdate(BaseModel):
+    status: Literal["pending", "under-review", "approved", "rejected"]
+    remarks: Optional[str] = None
+
+
+class ApplicationShare(BaseModel):
+    group_id: Optional[str] = None
+
+
 # --- Group & RBAC Schemas ---
 class GroupCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
+    description: Optional[str] = None
 
 
 class GroupMemberAdd(BaseModel):
     email: EmailStr
+    group_role: Literal["leader", "member"] = "member"
     can_create: bool = True
     can_edit: bool = False
     can_assign: bool = False
@@ -108,6 +135,7 @@ class GroupOut(BaseModel):
     id: str
     name: str
     owner_id: str
+    description: Optional[str] = None
     created_at: datetime
     members: List[GroupMemberOut] = []
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import './App.css';
-import { AppLayout, type ActivePage } from './layouts/AppLayout';import { AdminPage } from './pages/AdminPage';
+import { AppLayout, type ActivePage } from './layouts/AppLayout';
+import { AdminPage } from './pages/AdminPage';
 import { GroupsPage } from './pages/GroupsPage';
 import { LoginPage } from './pages/LoginPage';
 import { ServicesPage } from './pages/ServicesPage';
