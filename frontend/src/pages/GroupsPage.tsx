@@ -22,9 +22,9 @@ export const GroupsPage: React.FC<GroupsPageProps> = ({ currentUser }) => {
   const [creating, setCreating] = useState(false);
 
   // Add member form state per group
-  const [memberEmails, setMemberEmails] = useState<Record<number, string>>({});
+  const [memberEmails, setMemberEmails] = useState<Record<string, string>>({});
   const [memberRoles, setMemberRoles] = useState<
-    Record<number, 'member' | 'leader'>
+    Record<string, 'member' | 'leader'>
   >({});
 
   const loadGroups = async () => {
@@ -63,7 +63,7 @@ export const GroupsPage: React.FC<GroupsPageProps> = ({ currentUser }) => {
     }
   };
 
-  const handleAddMember = async (groupId: number) => {
+  const handleAddMember = async (groupId: string) => {
     const email = (memberEmails[groupId] || '').trim();
     const role = memberRoles[groupId] || 'member';
     if (!email) return;
@@ -80,7 +80,7 @@ export const GroupsPage: React.FC<GroupsPageProps> = ({ currentUser }) => {
     }
   };
 
-  const handleRemoveMember = async (groupId: number, userId: number) => {
+  const handleRemoveMember = async (groupId: string, userId: string) => {
     setError(null);
     setSuccessMsg(null);
     try {
@@ -95,15 +95,13 @@ export const GroupsPage: React.FC<GroupsPageProps> = ({ currentUser }) => {
   const canManageGroup = (group: Group) => {
     if (currentUser.role === 'admin') return true;
     if (group.created_by === currentUser.id) return true;
-    return group.members?.some(
-      (m) => m.user_id === currentUser.id && m.group_role === 'leader'
-    );
+    return false;
   };
 
   return (
     <div className="page-section">
       <div className="section-header">
-        <h2>👥 Groups & Collaborative Sharing (RBAC)</h2>
+        <h2>Groups & Collaborative Sharing (RBAC)</h2>
         <p>
           Create family, ward, or business groups to share and track applications
           together securely.

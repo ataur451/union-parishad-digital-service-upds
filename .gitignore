@@ -13,3 +13,9 @@ frontend/dist/
 .vscode/*
 !.vscode/extensions.json
 *.tsbuildinfo
+
+# Local runtime databases
+backend/upds_local.db
+backend/upds_local.db-*
+*.log
+backend/migration_test.db

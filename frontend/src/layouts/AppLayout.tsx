@@ -1,4 +1,5 @@
 import React from 'react';
+import { Landmark, LayoutGrid, Users, ShieldCheck, LogOut, LogIn } from 'lucide-react';
 import type { User } from '../types/service';
 export type ActivePage = 'services' | 'groups' | 'admin' | 'login';
 
@@ -21,27 +22,23 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     <div className="app-shell">
       <header className="top-navbar">
         <div className="navbar-inner">
-          <div
-            className="brand-area"
-            onClick={() => onNavigate('services')}
-            style={{ cursor: 'pointer' }}
-          >
-            <span className="brand-logo">🏛️</span>
+          <button type="button" className="brand-area" onClick={() => onNavigate('services')} aria-label="Go to services home">
+            <span className="brand-logo"><Landmark aria-hidden="true" size={25} /></span>
             <div>
               <h1 className="brand-title">Union Parishad Digital Service</h1>
               <span className="brand-subtitle">
                 E-Governance & Citizen Service Portal (UPDS)
               </span>
             </div>
-          </div>
+          </button>
 
-          <nav className="nav-links">
+          <nav className="nav-links" aria-label="Main navigation">
             <button
               type="button"
               className={`nav-btn ${activePage === 'services' ? 'active' : ''}`}
               onClick={() => onNavigate('services')}
             >
-              Services & Applications
+              <LayoutGrid size={17} aria-hidden="true" /> Services
             </button>
 
             {currentUser && (
@@ -50,7 +47,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 className={`nav-btn ${activePage === 'groups' ? 'active' : ''}`}
                 onClick={() => onNavigate('groups')}
               >
-                Groups & Sharing
+                <Users size={17} aria-hidden="true" /> Groups
               </button>
             )}
 
@@ -60,7 +57,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 className={`nav-btn ${activePage === 'admin' ? 'active' : ''}`}
                 onClick={() => onNavigate('admin')}
               >
-                Admin Panel
+                <ShieldCheck size={17} aria-hidden="true" /> Admin
               </button>
             )}
           </nav>
@@ -79,7 +76,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   className="btn-logout"
                   onClick={onLogout}
                 >
-                  Logout
+                  <LogOut size={15} aria-hidden="true" /> Logout
                 </button>
               </div>
             ) : (
@@ -88,7 +85,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 className="btn-primary"
                 onClick={() => onNavigate('login')}
               >
-                Login / Register
+                <LogIn size={16} aria-hidden="true" /> Sign in
               </button>
             )}
           </div>

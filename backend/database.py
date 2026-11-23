@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./upds_local.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./upds.db")
 
 # Supabase বা Heroku-style 'postgres://' লিংক থাকলে SQLAlchemy-এর জন্য 'postgresql://' করে নেওয়া
 if DATABASE_URL.startswith("postgres://"):

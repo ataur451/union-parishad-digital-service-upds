@@ -52,6 +52,7 @@ class Group(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
     name = Column(String, nullable=False)
     owner_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    description = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
 
     members = relationship("GroupMember", back_populates="group", cascade="all, delete-orphan")
@@ -80,7 +81,16 @@ class Application(Base):
     applicant_name = Column(String, nullable=False)
     nid_number = Column(String, nullable=False)
     service_type = Column(String, nullable=False)  # Category: Trade License, Birth Certificate, etc.
-    status = Column(String, default="Pending", nullable=False)  # Pending, Approved, Rejected
+    phone = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    father_name = Column(String, nullable=True)
+    mother_name = Column(String, nullable=True)
+    address = Column(Text, nullable=True)
+    ward_number = Column(String, nullable=True)
+    additional_info = Column(Text, nullable=True)
+    remarks = Column(Text, nullable=True)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    status = Column(String, default="pending", nullable=False)  # Pending, Approved, Rejected
     owner_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     group_id = Column(String, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True)
     assigned_to = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
