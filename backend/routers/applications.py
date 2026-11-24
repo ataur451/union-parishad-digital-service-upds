@@ -3,10 +3,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from database import get_db
-from models import User, Application, GroupMember
-from schemas import ApplicationCreate, ApplicationUpdate, ApplicationOut
-from core.security import get_current_user
+if __package__ == "backend.routers":
+    from ..database import get_db
+    from ..models import User, Application, Group, GroupMember
+    from ..schemas import ApplicationCreate, ApplicationUpdate, ApplicationOut
+    from ..core.security import get_current_user
+else:
+    from database import get_db
+    from models import User, Application, Group, GroupMember
+    from schemas import ApplicationCreate, ApplicationUpdate, ApplicationOut
+    from core.security import get_current_user
 
 router = APIRouter(prefix="/api/applications", tags=["Applications"])
 
@@ -16,6 +22,7 @@ def list_applications(
     search: Optional[str] = None,
     service_type: Optional[str] = None,
     status: Optional[str] = None,
+    group_id: Optional[str] = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -34,6 +41,8 @@ def list_applications(
         query = query.filter(Application.service_type == service_type)
     if status:
         query = query.filter(Application.status == status)
+    if group_id:
+        query = query.filter(Application.group_id == group_id)
 
     return query.order_by(Application.created_at.desc()).all()
 
@@ -49,6 +58,18 @@ def create_application(
         member = db.query(GroupMember).filter_by(group_id=payload.group_id, user_id=user.id).first()
         if not member or not member.can_create:
             raise HTTPException(status_code=403, detail="You do not have permission to create in this group")
+        if payload.assigned_to and not member.can_assign:
+            raise HTTPException(status_code=403, detail="You do not have permission to assign applications")
+    if payload.group_id and not db.query(Group).filter_by(id=payload.group_id).first():
+        raise HTTPException(status_code=404, detail="Group not found")
+    if payload.assigned_to:
+        target = db.query(User).filter_by(id=payload.assigned_to).first()
+        if not target:
+            raise HTTPException(status_code=404, detail="Assigned user not found")
+        if payload.group_id and user.role != "admin" and not db.query(GroupMember).filter_by(
+            group_id=payload.group_id, user_id=payload.assigned_to
+        ).first():
+            raise HTTPException(status_code=400, detail="Assigned user must be a group member")
 
     app = Application(
         applicant_name=payload.applicant_name.strip(),
@@ -75,16 +96,35 @@ def update_application(
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
 
-    # পারমিশন চেক: Admin, নিজের আবেদন, অথবা গ্রুপে can_edit পারমিশন থাকতে হবে
-    can_edit = (user.role == "admin") or (app.owner_id == user.id)
-    if not can_edit and app.group_id:
+    changes = payload.model_dump(exclude_unset=True)
+    if not changes:
+        raise HTTPException(status_code=400, detail="No application fields provided")
+    is_owner_or_admin = user.role == "admin" or app.owner_id == user.id
+    member = None
+    if not is_owner_or_admin and app.group_id:
         member = db.query(GroupMember).filter_by(group_id=app.group_id, user_id=user.id).first()
-        can_edit = bool(member and member.can_edit)
 
-    if not can_edit:
+    non_assignment_changes = set(changes) - {"assigned_to"}
+    if non_assignment_changes and not (
+        is_owner_or_admin or (member and member.can_edit)
+    ):
         raise HTTPException(status_code=403, detail="Not authorized to edit this application")
+    if "assigned_to" in changes and not (
+        is_owner_or_admin or (member and member.can_assign)
+    ):
+        raise HTTPException(status_code=403, detail="Not authorized to assign this application")
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    assigned_to = changes.get("assigned_to")
+    if "assigned_to" in changes and assigned_to:
+        target = db.query(User).filter_by(id=assigned_to).first()
+        if not target:
+            raise HTTPException(status_code=404, detail="Assigned user not found")
+        if app.group_id and user.role != "admin" and not db.query(GroupMember).filter_by(
+            group_id=app.group_id, user_id=assigned_to
+        ).first():
+            raise HTTPException(status_code=400, detail="Assigned user must be a group member")
+
+    for field, value in changes.items():
         setattr(app, field, value)
 
     db.commit()

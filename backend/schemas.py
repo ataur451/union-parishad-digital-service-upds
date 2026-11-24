@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -9,11 +9,13 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=4, max_length=128)
     nid_number: Optional[str] = None
+    role: Literal["user", "admin"] = "user"
 
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    role: Optional[Literal["user", "admin"]] = None
 
 
 class TokenResponse(BaseModel):
@@ -25,6 +27,27 @@ class TokenResponse(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+
+class ProfileUpdate(BaseModel):
+    full_name: Optional[str] = Field(None, min_length=2, max_length=100)
+    email: Optional[EmailStr] = None
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+
+class UserSessionOut(BaseModel):
+    id: str
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    created_at: datetime
+    expires_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class UserOut(BaseModel):
@@ -78,6 +101,10 @@ class GroupCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
 
 
+class GroupRename(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+
+
 class GroupMemberAdd(BaseModel):
     email: EmailStr
     can_create: bool = True
@@ -120,6 +147,19 @@ class BanUserRequest(BaseModel):
     reason: str = Field(..., min_length=3, max_length=255)
 
 
+class UserRoleUpdate(BaseModel):
+    role: Literal["user", "admin"]
+
+
+class BulkUserAction(BaseModel):
+    user_ids: List[str] = Field(..., min_length=1, max_length=500)
+    reason: Optional[str] = Field(None, min_length=3, max_length=255)
+
+
+class BulkDeleteRequest(BaseModel):
+    ids: List[str] = Field(..., min_length=1, max_length=500)
+
+
 class AuditLogOut(BaseModel):
     id: str
     user_id: Optional[str] = None
@@ -128,6 +168,7 @@ class AuditLogOut(BaseModel):
     details: Optional[str] = None
     ip_address: Optional[str] = None
     browser: Optional[str] = None
+    user_agent: Optional[str] = Field(None, validation_alias="browser")
     created_at: datetime
 
     class Config:

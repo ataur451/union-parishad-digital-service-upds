@@ -2,7 +2,10 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text, Integer
 from sqlalchemy.orm import relationship
-from database import Base
+if __package__ == "backend":
+    from .database import Base
+else:
+    from database import Base
 
 
 def generate_uuid():

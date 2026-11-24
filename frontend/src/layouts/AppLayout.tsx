@@ -69,7 +69,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             {currentUser ? (
               <div className="user-pill">
                 <div className="user-meta">
-                  <strong>{currentUser.name}</strong>
+                  <strong>{currentUser.full_name}</strong>
                   <span className={`role-tag role-${currentUser.role}`}>
                     {currentUser.role.toUpperCase()}
                   </span>

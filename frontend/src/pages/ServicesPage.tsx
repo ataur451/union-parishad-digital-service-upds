@@ -254,7 +254,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
     }
   };
 
-  const isStaffOrAdmin = currentUser?.role === 'staff' || currentUser?.role === 'admin';
+  const isStaffOrAdmin = currentUser?.role === 'admin';
 
   return (
     <div className="services-wrapper">

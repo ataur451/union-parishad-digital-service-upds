@@ -2,6 +2,7 @@ import type {
   Application,
   ApplicationFormData,
   ApplicationStatus,
+  AdminStats,
   AuditLog,
   AuthResponse,
   Group,
@@ -13,13 +14,16 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const TOKEN_KEY = 'upds_access_token';
 const USER_KEY = 'upds_current_user';
+const pendingGroupRequests = new Map<string, Promise<Group[]>>();
 
 interface ApiUser {
   id: string;
-  full_name: string;
+  full_name?: string;
+  name?: string;
   email: string;
   role: string;
-  is_banned: boolean;
+  is_banned?: boolean;
+  is_active?: boolean;
   created_at?: string;
 }
 
@@ -28,12 +32,16 @@ interface ApiAuthResponse extends Omit<AuthResponse, 'user'> {
 }
 
 function normalizeUser(user: ApiUser): User {
+  const fullName = user.full_name ?? user.name ?? '';
+  const isBanned = user.is_banned ?? user.is_active === false;
   return {
     id: user.id,
-    name: user.full_name,
+    full_name: fullName,
+    name: fullName,
     email: user.email,
-    role: user.role === 'admin' ? 'admin' : 'citizen',
-    is_active: !user.is_banned,
+    role: user.role === 'admin' ? 'admin' : 'user',
+    is_banned: isBanned,
+    is_active: !isBanned,
     created_at: user.created_at,
   };
 }
@@ -46,7 +54,18 @@ export function getSavedUser(): User | null {
   const raw = localStorage.getItem(USER_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as User;
+    const saved = JSON.parse(raw) as Partial<User>;
+    if (!saved.id || !saved.email || !saved.role) return null;
+    return normalizeUser({
+      id: String(saved.id),
+      full_name: saved.full_name,
+      name: saved.name,
+      email: saved.email,
+      role: saved.role,
+      is_banned: saved.is_banned,
+      is_active: saved.is_active,
+      created_at: saved.created_at,
+    });
   } catch {
     return null;
   }
@@ -66,7 +85,7 @@ async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = getToken();
+  const token = localStorage.getItem(TOKEN_KEY);
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
@@ -81,7 +100,11 @@ async function apiFetch<T>(
     headers,
   });
 
-  if (response.status === 401) {
+  if (
+    response.status === 401 &&
+    token &&
+    localStorage.getItem(TOKEN_KEY) === token
+  ) {
     clearAuthSession();
     window.dispatchEvent(new Event('upds:unauthorized'));
   }
@@ -112,11 +135,12 @@ async function apiFetch<T>(
 
 export async function loginUser(
   email: string,
-  password: string
+  password: string,
+  role?: Role
 ): Promise<AuthResponse> {
   const data = await apiFetch<ApiAuthResponse>('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, role }),
   });
   const auth = { ...data, user: normalizeUser(data.user) };
   saveAuthSession(auth);
@@ -127,6 +151,8 @@ export async function registerUser(payload: {
   full_name: string;
   email: string;
   password: string;
+  role?: Role;
+  nid_number?: string;
 }): Promise<AuthResponse> {
   const data = await apiFetch<ApiAuthResponse>('/auth/register', {
     method: 'POST',
@@ -207,7 +233,19 @@ export async function deleteApplication(id: number): Promise<void> {
 // ==================== Group & RBAC APIs ====================
 
 export async function fetchGroups(): Promise<Group[]> {
-  return apiFetch<Group[]>('/groups');
+  const token = getToken();
+  if (!token) return Promise.reject(new Error('Authentication required.'));
+
+  const pendingRequest = pendingGroupRequests.get(token);
+  if (pendingRequest) return pendingRequest;
+
+  const request = apiFetch<Group[]>('/groups');
+  pendingGroupRequests.set(token, request);
+  return request.finally(() => {
+    if (pendingGroupRequests.get(token) === request) {
+      pendingGroupRequests.delete(token);
+    }
+  });
 }
 
 export async function createGroup(
@@ -242,24 +280,31 @@ export async function removeGroupMember(
 
 // ==================== Admin APIs ====================
 
+export async function fetchAdminStats(): Promise<AdminStats> {
+  return apiFetch<AdminStats>('/admin/stats');
+}
+
 export async function fetchAllUsers(): Promise<User[]> {
-  return apiFetch<User[]>('/admin/users');
+  const users = await apiFetch<ApiUser[]>('/admin/users');
+  return users.map(normalizeUser);
 }
 
 export async function updateUserRole(
   userId: number | string,
   role: Role
 ): Promise<User> {
-  return apiFetch<User>(`/admin/users/${userId}/role`, {
+  const user = await apiFetch<ApiUser>(`/admin/users/${userId}/role`, {
     method: 'PATCH',
     body: JSON.stringify({ role }),
   });
+  return normalizeUser(user);
 }
 
 export async function toggleUserStatus(userId: number | string): Promise<User> {
-  return apiFetch<User>(`/admin/users/${userId}/status`, {
+  const user = await apiFetch<ApiUser>(`/admin/users/${userId}/status`, {
     method: 'PATCH',
   });
+  return normalizeUser(user);
 }
 
 export async function fetchAuditLogs(): Promise<AuditLog[]> {

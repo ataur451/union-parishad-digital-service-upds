@@ -1,13 +1,22 @@
-export type Role = 'citizen' | 'staff' | 'admin';
+export type Role = 'user' | 'admin';
 
 export interface User {
   id: number | string;
+  full_name: string;
   name: string;
   email: string;
   nid?: string | null;
   role: Role;
-  is_active?: boolean;
+  is_banned: boolean;
+  is_active: boolean;
   created_at?: string;
+}
+
+export interface AdminStats {
+  total_users: number;
+  total_applications: number;
+  pending_applications: number;
+  active_sessions: number;
 }
 
 export interface AuthResponse {
@@ -95,11 +104,13 @@ export interface ServiceInfo {
 }
 
 export interface AuditLog {
-  id: number;
-  user_id?: number | null;
+  id: string;
+  user_id?: string | null;
+  user_email?: string | null;
   action: string;
-  target_type: string;
-  target_id?: string | null;
   details?: string | null;
+  ip_address?: string | null;
+  user_agent?: string | null;
+  browser?: string | null;
   created_at: string;
 }
