@@ -2,12 +2,27 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from database import get_db
-from models import User, Group, GroupMember
-from schemas import GroupCreate, GroupMemberAdd, GroupMemberUpdate, GroupOut
-from core.security import get_current_user
+if __package__ == "backend.routers":
+    from ..database import get_db
+    from ..models import User, Group, GroupMember
+    from ..schemas import GroupCreate, GroupMemberAdd, GroupMemberUpdate, GroupOut, GroupRename
+    from ..core.security import get_current_user
+else:
+    from database import get_db
+    from models import User, Group, GroupMember
+    from schemas import GroupCreate, GroupMemberAdd, GroupMemberUpdate, GroupOut, GroupRename
+    from core.security import get_current_user
 
 router = APIRouter(prefix="/api/groups", tags=["Groups & RBAC"])
+
+
+def get_owned_group(group_id: str, user: User, db: Session) -> Group:
+    group = db.query(Group).filter_by(id=group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if group.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Only the group owner can manage this group")
+    return group
 
 
 @router.get("", response_model=List[GroupOut])
@@ -42,12 +57,16 @@ def add_member(
     db: Session = Depends(get_db),
 ):
     group = db.query(Group).filter_by(id=group_id).first()
-    if not group or (group.owner_id != user.id and user.role != "admin"):
-        raise HTTPException(status_code=403, detail="Only group owner or admin can add members")
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if group.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Only the group owner can add members")
 
     target = db.query(User).filter_by(email=payload.email.lower()).first()
     if not target:
         raise HTTPException(status_code=404, detail="User with this email not found")
+    if target.is_banned:
+        raise HTTPException(status_code=403, detail="Banned users cannot be added to groups")
 
     if db.query(GroupMember).filter_by(group_id=group_id, user_id=target.id).first():
         raise HTTPException(status_code=400, detail="User is already a member")
@@ -70,8 +89,10 @@ def update_member_permissions(
     db: Session = Depends(get_db),
 ):
     group = db.query(Group).filter_by(id=group_id).first()
-    if not group or (group.owner_id != user.id and user.role != "admin"):
-        raise HTTPException(status_code=403, detail="Only group owner or admin can update permissions")
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if group.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Only the group owner can update permissions")
 
     member = db.query(GroupMember).filter_by(group_id=group_id, user_id=member_user_id).first()
     if not member:
@@ -83,3 +104,49 @@ def update_member_permissions(
     db.commit()
     db.refresh(group)
     return group
+
+
+@router.patch("/{group_id}", response_model=GroupOut)
+def rename_group(
+    group_id: str,
+    payload: GroupRename,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    group = get_owned_group(group_id, user, db)
+    group.name = payload.name.strip()
+    db.commit()
+    db.refresh(group)
+    return group
+
+
+@router.delete("/{group_id}")
+def delete_group(
+    group_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    group = get_owned_group(group_id, user, db)
+    db.delete(group)
+    db.commit()
+    return {"message": "Group deleted"}
+
+
+@router.delete("/{group_id}/members/{member_user_id}")
+def remove_member(
+    group_id: str,
+    member_user_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    get_owned_group(group_id, user, db)
+    member = db.query(GroupMember).filter_by(
+        group_id=group_id, user_id=member_user_id
+    ).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    if member.user_id == user.id:
+        raise HTTPException(status_code=400, detail="The group owner cannot remove themselves")
+    db.delete(member)
+    db.commit()
+    return {"message": "Member removed"}

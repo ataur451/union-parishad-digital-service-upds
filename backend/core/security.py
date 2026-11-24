@@ -6,24 +6,28 @@ from typing import Optional
 
 import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-from database import get_db
-from models import User
+if __package__ == "backend.core":
+    from ..database import get_db
+    from ..models import User, UserSession
+else:
+    from database import get_db
+    from models import User, UserSession
 
 load_dotenv()
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback-dev-secret-key-change-me")
-PASSWORD_PEPPER = os.getenv("PASSWORD_PEPPER", "fallback-dev-pepper-change-me")
+PASSWORD_PEPPER = os.getenv("PEPPER", os.getenv("PASSWORD_PEPPER", "fallback-dev-pepper-change-me"))
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def _apply_pepper(plain_password: str) -> str:
@@ -52,15 +56,18 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def create_access_token(user_id: str, email: str, role: str) -> str:
+def create_access_token(user_id: str, email: str, role: str, session_id: Optional[str] = None) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
         "sub": user_id,
+        "user_id": user_id,
         "email": email,
         "role": role,
         "type": "access",
         "exp": expire,
     }
+    if session_id:
+        payload["sid"] = session_id
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -95,18 +102,25 @@ def decode_jwt_token(token: str) -> dict:
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User:
     """বর্তমান লগইন করা ইউজারকে রিটার্ন করে এবং ব্যান স্ট্যাটাস চেক করে"""
-    payload = decode_jwt_token(token)
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    payload = decode_jwt_token(credentials.credentials)
     if payload.get("type") != "access":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token type",
         )
 
-    user_id: Optional[str] = payload.get("sub")
+    user_id: Optional[str] = payload.get("user_id") or payload.get("sub")
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -125,6 +139,21 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Account suspended. Reason: {user.ban_reason or 'Policy violation'}",
         )
+
+    session_id = payload.get("sid")
+    if session_id:
+        session = db.query(UserSession).filter(
+            UserSession.id == session_id,
+            UserSession.user_id == user.id,
+            UserSession.is_active.is_(True),
+            UserSession.expires_at > datetime.now(timezone.utc),
+        ).first()
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session has been revoked or expired",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
     return user
 

@@ -1,13 +1,22 @@
-export type Role = 'citizen' | 'staff' | 'admin';
+export type Role = 'user' | 'admin';
 
 export interface User {
   id: number | string;
+  full_name: string;
   name: string;
   email: string;
   nid?: string | null;
   role: Role;
-  is_active?: boolean;
+  is_banned: boolean;
+  is_active: boolean;
   created_at?: string;
+}
+
+export interface AdminStats {
+  total_users: number;
+  total_applications: number;
+  pending_applications: number;
+  active_sessions: number;
 }
 
 export interface AuthResponse {
@@ -18,18 +27,18 @@ export interface AuthResponse {
 }
 
 export interface GroupMember {
-  id: string;
-  group_id: string;
-  user_id: string;
-  group_role: 'owner' | 'leader' | 'member';
+  id: number;
+  group_id: number;
+  user_id: number;
+  group_role: 'leader' | 'member';
   user?: User;
 }
 
 export interface Group {
-  id: string;
+  id: number;
   name: string;
   description?: string | null;
-  created_by: string;
+  created_by: number;
   created_at: string;
   members?: GroupMember[];
 }
@@ -49,7 +58,7 @@ export type ApplicationStatus =
   | 'rejected';
 
 export interface Application {
-  id: string;
+  id: number;
   application_id: string;
   service_type: ServiceType;
   applicant_name: string;
@@ -65,8 +74,8 @@ export interface Application {
   submitted_at: string;
   updated_at?: string | null;
   remarks?: string | null;
-  owner_id?: string | null;
-  group_id?: string | null;
+  owner_id?: number | null;
+  group_id?: number | null;
 }
 
 export interface ApplicationFormData {
@@ -80,7 +89,7 @@ export interface ApplicationFormData {
   address: string;
   ward_number: string;
   additional_info?: string;
-  group_id?: string | null;
+  group_id?: number | null;
 }
 
 export interface ServiceInfo {
@@ -91,14 +100,17 @@ export interface ServiceInfo {
   fee: string;
   processingTime: string;
   requiredDocuments: string[];
+  icon: string;
 }
 
 export interface AuditLog {
   id: string;
-  user_id?: number | null;
+  user_id?: string | null;
+  user_email?: string | null;
   action: string;
-  target_type: string;
-  target_id?: string | null;
   details?: string | null;
+  ip_address?: string | null;
+  user_agent?: string | null;
+  browser?: string | null;
   created_at: string;
 }
