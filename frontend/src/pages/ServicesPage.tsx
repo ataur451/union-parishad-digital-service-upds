@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Baby, FileText, Store, ShieldCheck, Landmark, Users, LayoutGrid, PenLine, Search, FolderOpen, ArrowRight } from 'lucide-react';
 import {
   createApplication,
   deleteApplication,
@@ -32,7 +33,6 @@ const SERVICES_CATALOG: ServiceInfo[] = [
     fee: '50 BDT',
     processingTime: '3-5 Working Days',
     requiredDocuments: ['Hospital Birth Record / EPI Card', 'Parents NID Copy'],
-    icon: '👶',
   },
   {
     id: 'death-certificate',
@@ -42,7 +42,6 @@ const SERVICES_CATALOG: ServiceInfo[] = [
     fee: '50 BDT',
     processingTime: '3 Working Days',
     requiredDocuments: ['Doctor/Hospital Certificate', 'Applicant NID Copy'],
-    icon: '🕊️',
   },
   {
     id: 'trade-license',
@@ -52,7 +51,6 @@ const SERVICES_CATALOG: ServiceInfo[] = [
     fee: '500 BDT',
     processingTime: '5-7 Working Days',
     requiredDocuments: ['Applicant NID', 'Shop Rent Deed / Ownership Paper', 'Holding Tax Receipt'],
-    icon: '🏪',
   },
   {
     id: 'character-certificate',
@@ -62,7 +60,6 @@ const SERVICES_CATALOG: ServiceInfo[] = [
     fee: '20 BDT',
     processingTime: '1-2 Working Days',
     requiredDocuments: ['NID / Birth Certificate Copy', 'Ward Member Recommendation'],
-    icon: '📜',
   },
   {
     id: 'citizen-certificate',
@@ -72,7 +69,6 @@ const SERVICES_CATALOG: ServiceInfo[] = [
     fee: '20 BDT',
     processingTime: '1-2 Working Days',
     requiredDocuments: ['NID Copy', 'Holding Tax / Utility Bill Copy'],
-    icon: '🏛️',
   },
   {
     id: 'inheritance-certificate',
@@ -82,9 +78,17 @@ const SERVICES_CATALOG: ServiceInfo[] = [
     fee: '100 BDT',
     processingTime: '5-7 Working Days',
     requiredDocuments: ['Death Certificate', 'NID of All Heirs', 'Ward Member Verification'],
-    icon: '👨‍👩‍👧‍👦',
   },
 ];
+
+const SERVICE_ICONS = {
+  'birth-certificate': Baby,
+  'death-certificate': FileText,
+  'trade-license': Store,
+  'character-certificate': ShieldCheck,
+  'citizen-certificate': Landmark,
+  'inheritance-certificate': Users,
+} satisfies Record<ServiceType, React.ElementType>;
 
 export const ServicesPage: React.FC<ServicesPageProps> = ({
   currentUser,
@@ -123,7 +127,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
   const [groups, setGroups] = useState<Group[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [groupFilter, setGroupFilter] = useState<number | 'all'>('all');
+  const [groupFilter, setGroupFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [listError, setListError] = useState<string | null>(null);
 
@@ -225,7 +229,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
     }
   };
 
-  const handleStatusUpdate = async (id: number, newStatus: ApplicationStatus) => {
+  const handleStatusUpdate = async (id: string, newStatus: ApplicationStatus) => {
     try {
       await updateApplicationStatus(id, newStatus);
       await loadApplications();
@@ -234,8 +238,8 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
     }
   };
 
-  const handleShareChange = async (appId: number, groupVal: string) => {
-    const groupId = groupVal ? Number(groupVal) : null;
+  const handleShareChange = async (appId: string, groupVal: string) => {
+    const groupId = groupVal || null;
     try {
       await shareApplicationWithGroup(appId, groupId);
       await loadApplications();
@@ -244,7 +248,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
     }
   };
 
-  const handleDeleteApp = async (id: number) => {
+  const handleDeleteApp = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this application?')) return;
     try {
       await deleteApplication(id);
@@ -258,6 +262,10 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
 
   return (
     <div className="services-wrapper">
+      <div className="page-intro">
+        <div><span className="eyebrow">UNION PARISHAD DIGITAL SERVICE</span><h2>Services for your community</h2><p>Apply for certificates, follow your requests, and access local services in one place.</p></div>
+        <span className="intro-mark"><Landmark size={32} strokeWidth={1.5} aria-hidden="true" /></span>
+      </div>
       {/* Sub-navigation Tabs */}
       <div className="sub-nav-tabs">
         <button
@@ -265,21 +273,21 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
           className={`sub-tab ${activeTab === 'catalog' ? 'active' : ''}`}
           onClick={() => setActiveTab('catalog')}
         >
-          📋 All Services
+          <LayoutGrid size={17} aria-hidden="true" /> All Services
         </button>
         <button
           type="button"
           className={`sub-tab ${activeTab === 'apply' ? 'active' : ''}`}
           onClick={() => setActiveTab('apply')}
         >
-          ✍️ Apply Online
+          <PenLine size={17} aria-hidden="true" /> Apply Online
         </button>
         <button
           type="button"
           className={`sub-tab ${activeTab === 'track' ? 'active' : ''}`}
           onClick={() => setActiveTab('track')}
         >
-          🔍 Track Application
+          <Search size={17} aria-hidden="true" /> Track Application
         </button>
         <button
           type="button"
@@ -292,16 +300,18 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
             }
           }}
         >
-          📂 {isStaffOrAdmin ? 'Manage All Applications' : 'My & Shared Applications'}
+          <FolderOpen size={17} aria-hidden="true" /> {isStaffOrAdmin ? 'Manage All Applications' : 'My & Shared Applications'}
         </button>
       </div>
 
       {/* TAB 1: SERVICES CATALOG */}
       {activeTab === 'catalog' && (
         <div className="services-grid">
-          {SERVICES_CATALOG.map((srv) => (
+          {SERVICES_CATALOG.map((srv) => {
+            const Icon = SERVICE_ICONS[srv.id];
+            return (
             <div key={srv.id} className="service-card">
-              <div className="service-icon">{srv.icon}</div>
+              <div className="service-icon"><Icon size={24} strokeWidth={1.8} aria-hidden="true" /></div>
               <h3>{srv.title}</h3>
               <div className="service-bn">{srv.titleBn}</div>
               <p>{srv.description}</p>
@@ -322,10 +332,10 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
                 className="btn-primary btn-block"
                 onClick={() => handleSelectServiceToApply(srv.id)}
               >
-                Apply Now →
+                Apply for service <ArrowRight size={16} aria-hidden="true" />
               </button>
             </div>
-          ))}
+          ); })}
         </div>
       )}
 
@@ -381,7 +391,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      group_id: e.target.value ? Number(e.target.value) : null,
+                      group_id: e.target.value || null,
                     })
                   }
                 >
@@ -512,7 +522,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
         <div className="card-box form-container">
           <h2>Track Application Status</h2>
           <p className="muted-text">
-            Enter your Application Tracking ID (e.g., UPDS-2026-XXXX) to view real-time status.
+            Sign in and enter your application ID to view its status.
           </p>
           <form onSubmit={handleTrackSearch} className="inline-form-grid">
             <input
@@ -583,7 +593,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
                   value={groupFilter}
                   onChange={(e) =>
                     setGroupFilter(
-                      e.target.value === 'all' ? 'all' : Number(e.target.value)
+                      e.target.value
                     )
                   }
                 >
@@ -644,10 +654,10 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
                                 handleShareChange(app.id, e.target.value)
                               }
                             >
-                              <option value="">🔒 Private</option>
+                              <option value="">Private</option>
                               {groups.map((g) => (
                                 <option key={g.id} value={g.id}>
-                                  👥 {g.name}
+                                  {g.name}
                                 </option>
                               ))}
                             </select>
