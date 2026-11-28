@@ -35,7 +35,11 @@ def get_my_groups(user: User = Depends(get_current_user), db: Session = Depends(
 
 @router.post("", response_model=GroupOut, status_code=201)
 def create_group(payload: GroupCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    group = Group(name=payload.name.strip(), owner_id=user.id)
+    group = Group(
+        name=payload.name.strip(),
+        owner_id=user.id,
+        description=payload.description,
+    )
     db.add(group)
     db.flush()
 
@@ -72,7 +76,7 @@ def add_member(
         raise HTTPException(status_code=400, detail="User is already a member")
 
     db.add(GroupMember(
-        group_id=group_id, user_id=target.id, group_role="member",
+        group_id=group_id, user_id=target.id, group_role=payload.group_role,
         can_create=payload.can_create, can_edit=payload.can_edit, can_assign=payload.can_assign,
     ))
     db.commit()
