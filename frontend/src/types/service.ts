@@ -68,7 +68,7 @@ export type ApplicationStatus =
   | 'rejected';
 
 export interface Application {
-  id: number;
+  id: string;
   application_id: string;
   service_type: ServiceType;
   applicant_name: string;
@@ -84,8 +84,8 @@ export interface Application {
   submitted_at: string;
   updated_at?: string | null;
   remarks?: string | null;
-  owner_id?: number | null;
-  group_id?: number | null;
+  owner_id?: string | null;
+  group_id?: string | null;
 }
 
 export interface ApplicationFormData {
@@ -99,7 +99,7 @@ export interface ApplicationFormData {
   address: string;
   ward_number: string;
   additional_info?: string;
-  group_id?: number | null;
+  group_id?: string | null;
 }
 
 export interface ServiceInfo {
@@ -110,7 +110,6 @@ export interface ServiceInfo {
   fee: string;
   processingTime: string;
   requiredDocuments: string[];
-  icon: string;
 }
 
 export interface AuditLog {
