@@ -12,6 +12,13 @@ export interface User {
   created_at?: string;
 }
 
+export interface UserSession {
+  id: string;
+  user_agent?: string | null;
+  created_at: string;
+  expires_at: string;
+}
+
 export interface AdminStats {
   total_users: number;
   total_applications: number;
