@@ -1,7 +1,7 @@
 import React from 'react';
-import { Landmark, LayoutGrid, Users, ShieldCheck, LogOut, LogIn } from 'lucide-react';
+import { Landmark, LayoutGrid, Users, ShieldCheck, LogOut, LogIn, UserRound } from 'lucide-react';
 import type { User } from '../types/service';
-export type ActivePage = 'services' | 'groups' | 'admin' | 'login';
+export type ActivePage = 'services' | 'groups' | 'admin' | 'profile' | 'login';
 
 interface AppLayoutProps {
   currentUser: User | null;
@@ -58,6 +58,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 onClick={() => onNavigate('admin')}
               >
                 <ShieldCheck size={17} aria-hidden="true" /> Admin
+              </button>
+            )}
+            {currentUser && (
+              <button
+                type="button"
+                className={`nav-btn ${activePage === 'profile' ? 'active' : ''}`}
+                onClick={() => onNavigate('profile')}
+              >
+                <UserRound size={17} aria-hidden="true" /> Profile
               </button>
             )}
           </nav>

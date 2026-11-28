@@ -5,6 +5,7 @@ import { AppLayout, type ActivePage } from './layouts/AppLayout';
 import { AdminDashboard } from './pages/AdminPage';
 import { GroupsPage } from './pages/GroupsPage';
 import { LoginPage } from './pages/LoginPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { ServicesPage } from './pages/ServicesPage';
 import {
   clearAuthSession,
@@ -18,6 +19,7 @@ function pageFromPath(pathname: string): ActivePage {
   if (pathname === '/admin') return 'admin';
   if (pathname === '/groups') return 'groups';
   if (pathname === '/login') return 'login';
+  if (pathname === '/profile') return 'profile';
   return 'services';
 }
 
@@ -112,7 +114,7 @@ export function App() {
   useEffect(() => {
     if (authLoading) return;
     if (
-      (activePage === 'groups' || activePage === 'admin') &&
+      (activePage === 'groups' || activePage === 'admin' || activePage === 'profile') &&
       (!currentUser || !accessToken)
     ) {
       navigate('login', true);
@@ -126,6 +128,13 @@ export function App() {
     setAccessToken(null);
     setCurrentUser(null);
     navigate('services');
+  };
+
+  const handlePasswordChanged = () => {
+    clearAuthSession();
+    setAccessToken(null);
+    setCurrentUser(null);
+    navigate('login');
   };
 
   return (
@@ -157,8 +166,19 @@ export function App() {
         />
       )}
 
-      {authLoading && (activePage === 'groups' || activePage === 'admin') && (
+      {authLoading &&
+        (activePage === 'groups' || activePage === 'admin' || activePage === 'profile') && (
         <div className="loading-box">Checking session...</div>
+      )}
+
+      {!authLoading && activePage === 'profile' && currentUser && accessToken && (
+        <ProtectedRoute currentUser={currentUser}>
+          <ProfilePage
+            currentUser={currentUser}
+            onProfileUpdated={setCurrentUser}
+            onPasswordChanged={handlePasswordChanged}
+          />
+        </ProtectedRoute>
       )}
 
       {!authLoading && activePage === 'groups' && currentUser && accessToken && (
