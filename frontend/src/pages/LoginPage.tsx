@@ -12,6 +12,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 }) => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [role, setRole] = useState<Role>('user');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [nid, setNid] = useState('');
   const [password, setPassword] = useState('');
@@ -29,16 +30,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         onLoginSuccess(res.user);
       } else {
         const res = await registerUser({
-          full_name: 'User',
+          full_name: fullName.trim(),
           email: email.trim(),
           password,
-          role,
+          role: 'user',
           nid_number: nid.trim() || undefined,
         });
         onLoginSuccess(res.user);
       }
-    } catch (err: any) {
-      setError(err.message || 'Authentication failed. Please try again.');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Authentication failed. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -88,28 +93,41 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           </button>
         </div>
 
-        {error && <div className="alert-error">{error}</div>}
+        {error && <div className="alert-error" role="alert">{error}</div>}
 
         <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label>{mode === 'login' ? 'Login as *' : 'User Type *'}</label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
-            >
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-            </select>
-            {mode === 'register' && role === 'admin' && (
-              <small>Admin accounts must use the existing admin login.</small>
-            )}
-          </div>
-
-          {mode === 'register' && (
+          {mode === 'login' ? (
+            <div className="form-group">
+              <label htmlFor="login-role">Login as *</label>
+              <select
+                id="login-role"
+                value={role}
+                onChange={(e) => setRole(e.target.value as Role)}
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+          ) : (
             <>
               <div className="form-group">
-                <label>NID Number (Optional)</label>
+                <label htmlFor="register-name">Full name *</label>
                 <input
+                  id="register-name"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Your full name"
+                  minLength={2}
+                  maxLength={100}
+                  autoComplete="name"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="register-nid">NID Number (Optional)</label>
+                <input
+                  id="register-nid"
                   type="text"
                   value={nid}
                   onChange={(e) => setNid(e.target.value)}
@@ -120,24 +138,36 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           )}
 
           <div className="form-group">
-            <label>Email Address *</label>
+            <label htmlFor="auth-email">Email Address *</label>
             <input
+              id="auth-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="example@upds.gov.bd"
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
               required
             />
           </div>
 
           <div className="form-group">
-            <label>Password *</label>
+            <label htmlFor="auth-password">Password *</label>
             <input
+              id="auth-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Minimum 6 characters"
-              minLength={6}
+              placeholder={
+                mode === 'register'
+                  ? 'Minimum 4 characters'
+                  : 'Enter your password'
+              }
+              minLength={mode === 'register' ? 4 : undefined}
+              autoComplete={
+                mode === 'login' ? 'current-password' : 'new-password'
+              }
               required
             />
           </div>
