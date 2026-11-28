@@ -95,7 +95,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
         {error && <div className="alert-error" role="alert">{error}</div>}
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form
+          onSubmit={handleSubmit}
+          className="auth-form"
+          autoComplete="off"
+        >
           {mode === 'login' ? (
             <div className="form-group">
               <label htmlFor="login-role">Login as *</label>
@@ -145,7 +149,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="example@upds.gov.bd"
-              autoComplete="email"
+              autoComplete="off"
               autoCapitalize="none"
               spellCheck={false}
               required
@@ -165,9 +169,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   : 'Enter your password'
               }
               minLength={mode === 'register' ? 4 : undefined}
-              autoComplete={
-                mode === 'login' ? 'current-password' : 'new-password'
-              }
+              autoComplete="new-password"
               required
             />
           </div>

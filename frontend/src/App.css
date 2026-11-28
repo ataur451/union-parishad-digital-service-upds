@@ -578,6 +578,12 @@ textarea:focus {
   margin-bottom: 1.25rem;
 }
 
+.auth-form input {
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 .auth-badge {
   display: inline-block;
   background: var(--primary-light);
