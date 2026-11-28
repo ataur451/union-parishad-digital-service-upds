@@ -122,7 +122,11 @@ async function apiFetch<T>(
     } catch {
       // fallback to default message
     }
-    throw new Error(errorMessage);
+    throw new Error(
+      response.status === 403
+        ? `Access denied (403): ${errorMessage}`
+        : errorMessage
+    );
   }
 
   if (response.status === 204) {
@@ -212,7 +216,7 @@ export async function revokeCurrentSession(sessionId: string): Promise<void> {
 export async function fetchApplications(params?: {
   status?: string;
   search?: string;
-  group_id?: number;
+  group_id?: string;
 }): Promise<Application[]> {
   const query = new URLSearchParams();
   if (params?.status && params.status !== 'all') query.set('status', params.status);
@@ -241,7 +245,7 @@ export async function createApplication(
 }
 
 export async function updateApplicationStatus(
-  id: number,
+  id: string,
   status: ApplicationStatus,
   remarks?: string
 ): Promise<Application> {
@@ -252,8 +256,8 @@ export async function updateApplicationStatus(
 }
 
 export async function shareApplicationWithGroup(
-  applicationId: number,
-  groupId: number | null
+  applicationId: string,
+  groupId: string | null
 ): Promise<Application> {
   return apiFetch<Application>(`/applications/${applicationId}/share`, {
     method: 'PATCH',
@@ -261,7 +265,7 @@ export async function shareApplicationWithGroup(
   });
 }
 
-export async function deleteApplication(id: number): Promise<void> {
+export async function deleteApplication(id: string): Promise<void> {
   return apiFetch<void>(`/applications/${id}`, {
     method: 'DELETE',
   });

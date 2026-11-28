@@ -352,7 +352,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
             </div>
           )}
 
-          {formError && <div className="alert-error">{formError}</div>}
+          {formError && <div className="alert-error" role="alert">{formError}</div>}
 
           {submitSuccess && (
             <div className="alert-success">
