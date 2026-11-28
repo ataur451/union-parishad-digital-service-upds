@@ -170,6 +170,32 @@ export async function fetchCurrentUser(): Promise<User> {
   return normalizedUser;
 }
 
+export async function updateCurrentUser(payload: {
+  full_name: string;
+  email: string;
+}): Promise<User> {
+  const user = await apiFetch<ApiUser>('/auth/me', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+  const normalizedUser = normalizeUser(user);
+  localStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
+  return normalizedUser;
+}
+
+export async function changeCurrentPassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  await apiFetch<{ message: string }>('/auth/me/password', {
+    method: 'POST',
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  });
+}
+
 // ==================== Application APIs ====================
 
 export async function fetchApplications(params?: {
