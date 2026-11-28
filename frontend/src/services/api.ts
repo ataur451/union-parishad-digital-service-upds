@@ -295,20 +295,42 @@ export async function createGroup(
   });
 }
 
+export interface GroupMemberPermissions {
+  can_create: boolean;
+  can_edit: boolean;
+  can_assign: boolean;
+}
+
 export async function addGroupMember(
-  groupId: number,
+  groupId: string,
   email: string,
-  groupRole: 'leader' | 'member' = 'member'
+  groupRole: 'leader' | 'member' = 'member',
+  permissions: GroupMemberPermissions = {
+    can_create: true,
+    can_edit: false,
+    can_assign: false,
+  }
 ): Promise<Group> {
   return apiFetch<Group>(`/groups/${groupId}/members`, {
     method: 'POST',
-    body: JSON.stringify({ email, group_role: groupRole }),
+    body: JSON.stringify({ email, group_role: groupRole, ...permissions }),
+  });
+}
+
+export async function updateGroupMemberPermissions(
+  groupId: string,
+  userId: string,
+  permissions: Partial<GroupMemberPermissions>
+): Promise<Group> {
+  return apiFetch<Group>(`/groups/${groupId}/members/${userId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(permissions),
   });
 }
 
 export async function removeGroupMember(
-  groupId: number,
-  userId: number
+  groupId: string,
+  userId: string
 ): Promise<void> {
   return apiFetch<void>(`/groups/${groupId}/members/${userId}`, {
     method: 'DELETE',

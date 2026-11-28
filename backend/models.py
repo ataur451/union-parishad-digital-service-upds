@@ -75,6 +75,7 @@ class GroupMember(Base):
     joined_at = Column(DateTime(timezone=True), default=utc_now)
 
     group = relationship("Group", back_populates="members")
+    user = relationship("User")
 
 
 class Application(Base):

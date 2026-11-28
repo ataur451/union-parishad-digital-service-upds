@@ -34,18 +34,21 @@ export interface AuthResponse {
 }
 
 export interface GroupMember {
-  id: number;
-  group_id: number;
-  user_id: number;
-  group_role: 'leader' | 'member';
-  user?: User;
+  id: string;
+  user_id: string;
+  group_role: 'owner' | 'leader' | 'member';
+  can_create: boolean;
+  can_edit: boolean;
+  can_assign: boolean;
+  joined_at: string;
+  user?: Pick<User, 'id' | 'full_name' | 'email'>;
 }
 
 export interface Group {
-  id: number;
+  id: string;
   name: string;
   description?: string | null;
-  created_by: number;
+  owner_id: string;
   created_at: string;
   members?: GroupMember[];
 }

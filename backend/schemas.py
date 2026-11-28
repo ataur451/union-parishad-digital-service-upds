@@ -145,9 +145,19 @@ class GroupMemberUpdate(BaseModel):
     can_assign: Optional[bool] = None
 
 
+class GroupMemberUserOut(BaseModel):
+    id: str
+    full_name: str
+    email: EmailStr
+
+    class Config:
+        from_attributes = True
+
+
 class GroupMemberOut(BaseModel):
     id: str
     user_id: str
+    user: Optional[GroupMemberUserOut] = None
     group_role: str
     can_create: bool
     can_edit: bool

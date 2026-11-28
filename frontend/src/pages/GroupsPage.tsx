@@ -1,13 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Crown, Shield, Users } from 'lucide-react';
 import {
   addGroupMember,
   createGroup,
   fetchGroups,
   removeGroupMember,
+  updateGroupMemberPermissions,
+  type GroupMemberPermissions,
 } from '../services/api';
-import type { Group, User } from '../types/service';
+import type { Group, GroupMember, User } from '../types/service';
+
 interface GroupsPageProps {
   currentUser: User;
+}
+
+const defaultPermissions: GroupMemberPermissions = {
+  can_create: true,
+  can_edit: false,
+  can_assign: false,
+};
+
+const permissionOptions: Array<{
+  key: keyof GroupMemberPermissions;
+  label: string;
+}> = [
+  { key: 'can_create', label: 'Create applications' },
+  { key: 'can_edit', label: 'Edit applications' },
+  { key: 'can_assign', label: 'Assign applications' },
+];
+
+function getGroupRoleLabel(role: GroupMember['group_role']): string {
+  return role === 'owner' ? 'Owner' : role === 'leader' ? 'Leader' : 'Member';
 }
 
 export const GroupsPage: React.FC<GroupsPageProps> = ({ currentUser }) => {
@@ -15,139 +38,237 @@ export const GroupsPage: React.FC<GroupsPageProps> = ({ currentUser }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  // Create group form
   const [groupName, setGroupName] = useState('');
   const [groupDesc, setGroupDesc] = useState('');
   const [creating, setCreating] = useState(false);
-
-  // Add member form state per group
   const [memberEmails, setMemberEmails] = useState<Record<string, string>>({});
   const [memberRoles, setMemberRoles] = useState<
-    Record<string, 'member' | 'leader'>
+    Record<string, 'leader' | 'member'>
   >({});
-
-  const loadGroups = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchGroups();
-      setGroups(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load groups.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [memberPermissions, setMemberPermissions] = useState<
+    Record<string, GroupMemberPermissions>
+  >({});
+  const [savingMember, setSavingMember] = useState<string | null>(null);
 
   useEffect(() => {
-    loadGroups();
+    let active = true;
+    fetchGroups()
+      .then((loadedGroups) => {
+        if (active) setGroups(loadedGroups);
+      })
+      .catch((loadError: unknown) => {
+        if (active) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'Failed to load groups.'
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const handleCreateGroup = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateGroup = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!groupName.trim()) return;
+
     setCreating(true);
     setError(null);
     setSuccessMsg(null);
     try {
-      await createGroup(groupName.trim(), groupDesc.trim() || undefined);
+      const group = await createGroup(
+        groupName.trim(),
+        groupDesc.trim() || undefined
+      );
+      setGroups((currentGroups) => [...currentGroups, group]);
       setGroupName('');
       setGroupDesc('');
-      setSuccessMsg('Group created successfully!');
-      await loadGroups();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create group.');
+      setSuccessMsg('Group created successfully.');
+    } catch (createError: unknown) {
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : 'Failed to create group.'
+      );
     } finally {
       setCreating(false);
     }
   };
 
-  const handleAddMember = async (groupId: string) => {
+  const handleAddMember = async (
+    event: React.FormEvent<HTMLFormElement>,
+    groupId: string
+  ) => {
+    event.preventDefault();
     const email = (memberEmails[groupId] || '').trim();
-    const role = memberRoles[groupId] || 'member';
     if (!email) return;
 
+    setSavingMember(groupId);
     setError(null);
     setSuccessMsg(null);
     try {
-      await addGroupMember(groupId, email, role);
-      setMemberEmails((prev) => ({ ...prev, [groupId]: '' }));
-      setSuccessMsg(`Member (${email}) added to group!`);
-      await loadGroups();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to add member.');
+      const updatedGroup = await addGroupMember(
+        groupId,
+        email,
+        memberRoles[groupId] || 'member',
+        memberPermissions[groupId] || defaultPermissions
+      );
+      setGroups((currentGroups) =>
+        currentGroups.map((group) =>
+          group.id === updatedGroup.id ? updatedGroup : group
+        )
+      );
+      setMemberEmails((current) => ({ ...current, [groupId]: '' }));
+      setMemberRoles((current) => ({ ...current, [groupId]: 'member' }));
+      setMemberPermissions((current) => ({
+        ...current,
+        [groupId]: defaultPermissions,
+      }));
+      setSuccessMsg(`Member ${email} added to the group.`);
+    } catch (addError: unknown) {
+      setError(
+        addError instanceof Error ? addError.message : 'Failed to add member.'
+      );
+    } finally {
+      setSavingMember(null);
+    }
+  };
+
+  const handlePermissionChange = async (
+    groupId: string,
+    member: GroupMember,
+    permission: keyof GroupMemberPermissions,
+    value: boolean
+  ) => {
+    const memberKey = `${groupId}:${member.user_id}`;
+    setSavingMember(memberKey);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const updatedGroup = await updateGroupMemberPermissions(groupId, member.user_id, {
+        [permission]: value,
+      });
+      setGroups((currentGroups) =>
+        currentGroups.map((group) =>
+          group.id === updatedGroup.id ? updatedGroup : group
+        )
+      );
+      setSuccessMsg('Member permissions updated.');
+    } catch (updateError: unknown) {
+      setError(
+        updateError instanceof Error
+          ? updateError.message
+          : 'Failed to update member permissions.'
+      );
+    } finally {
+      setSavingMember(null);
     }
   };
 
   const handleRemoveMember = async (groupId: string, userId: string) => {
+    setSavingMember(`${groupId}:${userId}`);
     setError(null);
     setSuccessMsg(null);
     try {
       await removeGroupMember(groupId, userId);
-      setSuccessMsg('Member removed from group.');
-      await loadGroups();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to remove member.');
+      setGroups((currentGroups) =>
+        currentGroups.map((group) =>
+          group.id === groupId
+            ? {
+                ...group,
+                members: group.members?.filter(
+                  (member) => member.user_id !== userId
+                ),
+              }
+            : group
+        )
+      );
+      setSuccessMsg('Member removed from the group.');
+    } catch (removeError: unknown) {
+      setError(
+        removeError instanceof Error
+          ? removeError.message
+          : 'Failed to remove member.'
+      );
+    } finally {
+      setSavingMember(null);
     }
   };
 
-  const canManageGroup = (group: Group) => {
-    if (currentUser.role === 'admin') return true;
-    if (group.created_by === currentUser.id) return true;
-    return false;
-  };
+  const isGroupOwner = (group: Group) =>
+    group.owner_id === String(currentUser.id);
 
   return (
-    <div className="page-section">
-      <div className="section-header">
-        <h2>Groups & Collaborative Sharing (RBAC)</h2>
-        <p>
-          Create family, ward, or business groups to share and track applications
-          together securely.
-        </p>
-      </div>
+    <div className="page-section groups-page">
+      <header className="groups-heading">
+        <div className="groups-heading-icon" aria-hidden="true">
+          <Users size={24} />
+        </div>
+        <div>
+          <h2>Groups &amp; permissions</h2>
+          <p>
+            Organize shared work and manage what each group member can do.
+          </p>
+        </div>
+      </header>
 
-      {error && <div className="alert-error">{error}</div>}
-      {successMsg && <div className="alert-success">{successMsg}</div>}
+      {error && <div className="alert-error" role="alert">{error}</div>}
+      {successMsg && <div className="alert-success" role="status">{successMsg}</div>}
 
-      {/* Create New Group Card */}
-      <div className="card-box" style={{ marginBottom: '1.5rem' }}>
-        <h3>+ Create New Group</h3>
+      <section className="card-box create-group-card">
+        <div className="group-section-heading">
+          <div className="group-section-icon" aria-hidden="true">
+            <Users size={18} />
+          </div>
+          <div>
+            <h3>Create a group</h3>
+            <p>Start a family, ward, or business group.</p>
+          </div>
+        </div>
         <form onSubmit={handleCreateGroup} className="inline-form-grid">
           <input
             type="text"
-            placeholder="Group Name (e.g., Ward-4 Family Group)"
+            aria-label="Group name"
+            placeholder="Group name"
             value={groupName}
-            onChange={(e) => setGroupName(e.target.value)}
+            onChange={(event) => setGroupName(event.target.value)}
+            minLength={2}
+            maxLength={100}
             required
           />
           <input
             type="text"
-            placeholder="Description (Optional)"
+            aria-label="Group description"
+            placeholder="Description (optional)"
             value={groupDesc}
-            onChange={(e) => setGroupDesc(e.target.value)}
+            onChange={(event) => setGroupDesc(event.target.value)}
           />
           <button type="submit" className="btn-primary" disabled={creating}>
-            {creating ? 'Creating...' : 'Create Group'}
+            {creating ? 'Creating...' : 'Create group'}
           </button>
         </form>
-      </div>
+      </section>
 
-      {/* Group List */}
       {loading ? (
         <div className="loading-box">Loading your groups...</div>
       ) : groups.length === 0 ? (
         <div className="empty-box">
-          You are not part of any group yet. Create one above to start sharing!
+          You are not part of any group yet. Create one above to get started.
         </div>
       ) : (
         <div className="groups-grid">
           {groups.map((group) => {
-            const isManager = canManageGroup(group);
+            const canManage = isGroupOwner(group);
+            const members = group.members || [];
             return (
-              <div key={group.id} className="card-box group-card">
-                <div className="group-card-header">
+              <section key={group.id} className="card-box group-card">
+                <header className="group-card-header">
                   <div>
                     <h3>{group.name}</h3>
                     {group.description && (
@@ -155,89 +276,172 @@ export const GroupsPage: React.FC<GroupsPageProps> = ({ currentUser }) => {
                     )}
                   </div>
                   <span className="badge badge-info">
-                    Group #{group.id}
+                    {members.length} {members.length === 1 ? 'member' : 'members'}
                   </span>
-                </div>
+                </header>
 
                 <div className="members-list">
-                  <h4>Members ({group.members?.length || 0})</h4>
-                  {group.members && group.members.length > 0 ? (
+                  <h4>Members &amp; permissions</h4>
+                  {members.length > 0 ? (
                     <ul>
-                      {group.members.map((m) => (
-                        <li key={m.id} className="member-item">
-                          <div>
-                            <strong>
-                              {m.user?.name || `User #${m.user_id}`}
-                            </strong>{' '}
-                            <span className="muted-text">
-                              ({m.user?.email || ''})
-                            </span>
-                          </div>
-                          <div className="member-actions">
-                            <span
-                              className={`badge ${
-                                m.group_role === 'leader'
-                                  ? 'badge-warning'
-                                  : 'badge-secondary'
-                              }`}
-                            >
-                              {m.group_role.toUpperCase()}
-                            </span>
-                            {isManager && m.user_id !== currentUser.id && (
-                              <button
-                                type="button"
-                                className="btn-danger-sm"
-                                onClick={() =>
-                                  handleRemoveMember(group.id, m.user_id)
-                                }
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </div>
-                        </li>
-                      ))}
+                      {members.map((member) => {
+                        const memberKey = `${group.id}:${member.user_id}`;
+                        const isSaving = savingMember === memberKey;
+                        const isOwner = member.group_role === 'owner';
+                        return (
+                          <li key={member.id} className="member-item">
+                            <div className="member-main">
+                              <div className="member-identity">
+                                <span
+                                  className={`member-avatar ${
+                                    isOwner ? 'member-avatar-owner' : ''
+                                  }`}
+                                  aria-hidden="true"
+                                >
+                                  {isOwner ? (
+                                    <Crown size={16} />
+                                  ) : (
+                                    <Users size={16} />
+                                  )}
+                                </span>
+                                <div className="member-name">
+                                  <strong>
+                                    {member.user?.full_name ||
+                                      'Member information unavailable'}
+                                  </strong>
+                                  {member.user?.email && (
+                                    <span>{member.user.email}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="member-role-actions">
+                                <span
+                                  className={`group-role-badge group-role-${member.group_role}`}
+                                >
+                                  {getGroupRoleLabel(member.group_role)}
+                                </span>
+                                {canManage && !isOwner && (
+                                  <button
+                                    type="button"
+                                    className="btn-danger-sm"
+                                    onClick={() =>
+                                      handleRemoveMember(group.id, member.user_id)
+                                    }
+                                    disabled={isSaving}
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="member-permissions">
+                              <span className="permissions-label">
+                                <Shield size={14} aria-hidden="true" />
+                                Permissions
+                              </span>
+                              <div className="permission-list">
+                                {permissionOptions.map(({ key, label }) => (
+                                  <label
+                                    key={key}
+                                    className={`permission-option ${
+                                      member[key] ? 'permission-enabled' : ''
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={member[key]}
+                                      disabled={!canManage || isOwner || isSaving}
+                                      onChange={(event) =>
+                                        handlePermissionChange(
+                                          group.id,
+                                          member,
+                                          key,
+                                          event.target.checked
+                                        )
+                                      }
+                                    />
+                                    {label}
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : (
                     <p className="muted-text">No members listed.</p>
                   )}
                 </div>
 
-                {isManager && (
-                  <div className="add-member-box">
-                    <input
-                      type="email"
-                      placeholder="User email to invite..."
-                      value={memberEmails[group.id] || ''}
-                      onChange={(e) =>
-                        setMemberEmails((prev) => ({
-                          ...prev,
-                          [group.id]: e.target.value,
-                        }))
-                      }
-                    />
-                    <select
-                      value={memberRoles[group.id] || 'member'}
-                      onChange={(e) =>
-                        setMemberRoles((prev) => ({
-                          ...prev,
-                          [group.id]: e.target.value as 'member' | 'leader',
-                        }))
-                      }
-                    >
-                      <option value="member">Member</option>
-                      <option value="leader">Leader</option>
-                    </select>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => handleAddMember(group.id)}
-                    >
-                      Add
-                    </button>
-                  </div>
+                {canManage && (
+                  <form
+                    className="add-member-form"
+                    onSubmit={(event) => handleAddMember(event, group.id)}
+                  >
+                    <h4>Add a member</h4>
+                    <div className="add-member-fields">
+                      <input
+                        type="email"
+                        aria-label={`Email to add to ${group.name}`}
+                        placeholder="Member email address"
+                        value={memberEmails[group.id] || ''}
+                        onChange={(event) =>
+                          setMemberEmails((current) => ({
+                            ...current,
+                            [group.id]: event.target.value,
+                          }))
+                        }
+                        required
+                      />
+                      <select
+                        aria-label={`Role for new ${group.name} member`}
+                        value={memberRoles[group.id] || 'member'}
+                        onChange={(event) =>
+                          setMemberRoles((current) => ({
+                            ...current,
+                            [group.id]: event.target.value as 'leader' | 'member',
+                          }))
+                        }
+                      >
+                        <option value="member">Member</option>
+                        <option value="leader">Leader</option>
+                      </select>
+                      <button
+                        type="submit"
+                        className="btn-secondary"
+                        disabled={savingMember === group.id}
+                      >
+                        {savingMember === group.id ? 'Adding...' : 'Add member'}
+                      </button>
+                    </div>
+                    <div className="new-member-permissions">
+                      <span>Grant permissions</span>
+                      {permissionOptions.map(({ key, label }) => (
+                        <label key={key}>
+                          <input
+                            type="checkbox"
+                            checked={
+                              (memberPermissions[group.id] || defaultPermissions)[key]
+                            }
+                            onChange={(event) =>
+                              setMemberPermissions((current) => ({
+                                ...current,
+                                [group.id]: {
+                                  ...(current[group.id] || defaultPermissions),
+                                  [key]: event.target.checked,
+                                },
+                              }))
+                            }
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </form>
                 )}
-              </div>
+              </section>
             );
           })}
         </div>
