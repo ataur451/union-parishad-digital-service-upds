@@ -1,7 +1,12 @@
-import { useState } from 'react';
-import { KeyRound, UserRound } from 'lucide-react';
-import { changeCurrentPassword, updateCurrentUser } from '../services/api';
-import type { User } from '../types/service';
+import { useEffect, useState } from 'react';
+import { KeyRound, Laptop, Monitor, ShieldCheck, Smartphone, UserRound } from 'lucide-react';
+import {
+  changeCurrentPassword,
+  fetchCurrentSessions,
+  revokeCurrentSession,
+  updateCurrentUser,
+} from '../services/api';
+import type { User, UserSession } from '../types/service';
 
 interface ProfilePageProps {
   currentUser: User;
@@ -11,6 +16,43 @@ interface ProfilePageProps {
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function getDeviceLabel(userAgent?: string | null): string {
+  if (!userAgent) return 'Unknown browser or device';
+  const browser = userAgent.includes('Edg/')
+    ? 'Edge'
+    : userAgent.includes('OPR/')
+      ? 'Opera'
+      : userAgent.includes('Firefox/')
+        ? 'Firefox'
+        : userAgent.includes('Chrome/')
+          ? 'Chrome'
+          : userAgent.includes('Safari/')
+            ? 'Safari'
+            : 'Browser';
+  const platform = userAgent.includes('Windows')
+    ? 'Windows'
+    : userAgent.includes('Android')
+      ? 'Android'
+      : /iPhone|iPad|iPod/.test(userAgent)
+        ? 'iOS'
+        : userAgent.includes('Macintosh')
+          ? 'macOS'
+          : userAgent.includes('Linux')
+            ? 'Linux'
+            : 'device';
+  return `${browser} on ${platform}`;
+}
+
+function formatSessionDate(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? 'Date unavailable'
+    : date.toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
 }
 
 export function ProfilePage({
@@ -29,6 +71,28 @@ export function ProfilePage({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [sessions, setSessions] = useState<UserSession[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
+  const [sessionsSuccess, setSessionsSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchCurrentSessions()
+      .then((items) => {
+        if (active) setSessions(items);
+      })
+      .catch((error: unknown) => {
+        if (active) setSessionsError(getErrorMessage(error, 'Unable to load active sessions.'));
+      })
+      .finally(() => {
+        if (active) setSessionsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleProfileSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -67,6 +131,23 @@ export function ProfilePage({
       setPasswordError(getErrorMessage(error, 'Unable to change your password.'));
     } finally {
       setChangingPassword(false);
+    }
+  };
+
+  const handleRevokeSession = async (session: UserSession) => {
+    setSessionsError(null);
+    setSessionsSuccess(null);
+    setRevokingSessionId(session.id);
+    try {
+      await revokeCurrentSession(session.id);
+      setSessions((activeSessions) =>
+        activeSessions.filter((activeSession) => activeSession.id !== session.id)
+      );
+      setSessionsSuccess('The selected session has been revoked.');
+    } catch (error: unknown) {
+      setSessionsError(getErrorMessage(error, 'Unable to revoke this session.'));
+    } finally {
+      setRevokingSessionId(null);
     }
   };
 
@@ -196,6 +277,53 @@ export function ProfilePage({
           </form>
         </section>
       </div>
+
+      <section className="card-box profile-card sessions-card">
+        <div className="profile-card-heading">
+          <div className="profile-section-icon" aria-hidden="true">
+            <ShieldCheck size={19} />
+          </div>
+          <div>
+            <h3>Active sessions</h3>
+            <p>Review browsers and devices signed in to your account.</p>
+          </div>
+        </div>
+
+        {sessionsError && <div className="alert-error" role="alert">{sessionsError}</div>}
+        {sessionsSuccess && <div className="alert-success" role="status">{sessionsSuccess}</div>}
+        {sessionsLoading ? (
+          <p className="session-empty">Loading active sessions...</p>
+        ) : sessions.length === 0 ? (
+          <p className="session-empty">No active sessions found.</p>
+        ) : (
+          <ul className="session-list">
+            {sessions.map((session) => {
+              const isMobile = /Android|iPhone|iPad|iPod/i.test(session.user_agent ?? '');
+              const DeviceIcon = isMobile ? Smartphone : session.user_agent ? Laptop : Monitor;
+              return (
+                <li className="session-item" key={session.id}>
+                  <div className="session-device-icon" aria-hidden="true">
+                    <DeviceIcon size={20} />
+                  </div>
+                  <div className="session-details">
+                    <strong>{getDeviceLabel(session.user_agent)}</strong>
+                    <span>Signed in {formatSessionDate(session.created_at)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-revoke-session"
+                    onClick={() => handleRevokeSession(session)}
+                    disabled={revokingSessionId !== null}
+                    aria-label={`Revoke session: ${getDeviceLabel(session.user_agent)}`}
+                  >
+                    {revokingSessionId === session.id ? 'Revoking...' : 'Revoke'}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

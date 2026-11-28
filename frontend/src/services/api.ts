@@ -8,6 +8,7 @@ import type {
   Group,
   Role,
   User,
+  UserSession,
 } from '../types/service';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
@@ -193,6 +194,16 @@ export async function changeCurrentPassword(
       current_password: currentPassword,
       new_password: newPassword,
     }),
+  });
+}
+
+export async function fetchCurrentSessions(): Promise<UserSession[]> {
+  return apiFetch<UserSession[]>('/auth/sessions');
+}
+
+export async function revokeCurrentSession(sessionId: string): Promise<void> {
+  await apiFetch<{ message: string }>(`/auth/sessions/${encodeURIComponent(sessionId)}`, {
+    method: 'DELETE',
   });
 }
 
